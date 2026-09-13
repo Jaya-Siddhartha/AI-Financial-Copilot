@@ -1,0 +1,15 @@
+{
+  "name": "ai-financial-decision-copilot",
+  "version": "1.0.0",
+  "description": "AI Financial Decision Copilot - Step 1 MERN Foundation & Fintech Dashboard",
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "start:backend": "cd backend && npm start",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
