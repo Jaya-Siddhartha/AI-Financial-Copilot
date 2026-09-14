@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.use(morgan('dev'));
 }
 
@@ -63,7 +63,7 @@ import { dataService } from './services/dataService.js';
 import { seedDualDemoAccounts } from './services/seedService.js';
 
 // Connect to Database and start server
-const startServer = async () => {
+export const startServer = async () => {
   try {
     await connectDB();
     const existingUsers = await dataService.getAllUsers();
@@ -80,6 +80,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 export default app;

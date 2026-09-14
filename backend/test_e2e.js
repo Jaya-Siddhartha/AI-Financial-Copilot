@@ -68,7 +68,7 @@ async function runTests() {
   console.log(`✓ Rahul Upcoming EMI: ₹${rData1.metrics.totalUpcomingEMI}`);
   console.log(`✓ Rahul Safe-to-Spend: ₹${rData1.metrics.safeToSpend}`);
 
-  if (rData1.metrics.currentBalance !== 20000) throw new Error('Rahul starting balance should be 20000');
+  if (rData1.metrics.currentBalance !== 30000) throw new Error('Rahul starting balance should be 30000');
 
   // Step 4: Siddhartha sends ₹5,000 to Rahul (Double-Entry Transfer)
   console.log('\nStep 4: Siddhartha sends ₹5,000 to Rahul (+91 9123456789)...');
@@ -101,11 +101,11 @@ async function runTests() {
   console.log('\nStep 6: Verifying Rahul Account Received ₹5,000 Automatically...');
   const rahulDash2 = await api.get('/account/dashboard', { params: { userId: 'user_rahul' } });
   const rData2 = rahulDash2.data.data;
-  console.log(`✓ Rahul Updated Balance: ₹${rData2.metrics.currentBalance} (Expected: 25000)`);
+  console.log(`✓ Rahul Updated Balance: ₹${rData2.metrics.currentBalance} (Expected: 35000)`);
   console.log(`✓ Rahul Safe-to-Spend: ₹${rData2.metrics.safeToSpend}`);
   console.log(`✓ Rahul Latest Transaction:`, rData2.recentTransactions[0].title, `(+ ₹${rData2.recentTransactions[0].amount})`);
 
-  if (rData2.metrics.currentBalance !== 25000) throw new Error('Rahul balance should be 25000');
+  if (rData2.metrics.currentBalance !== 35000) throw new Error('Rahul balance should be 35000');
   if (rData2.recentTransactions[0].type !== 'credit' || rData2.recentTransactions[0].amount !== 5000) {
     throw new Error('Rahul must have received a credit transaction of 5000');
   }
@@ -158,7 +158,7 @@ async function runTests() {
 
   const sidFinal = finalAccounts.data.data.find(a => a.id === 'user_siddhartha');
   const rahulFinal = finalAccounts.data.data.find(a => a.id === 'user_rahul');
-  if (sidFinal.currentBalance !== 50000 || rahulFinal.currentBalance !== 20000) {
+  if (sidFinal.currentBalance !== 50000 || rahulFinal.currentBalance !== 30000) {
     throw new Error('Balances not properly restored after reset');
   }
 

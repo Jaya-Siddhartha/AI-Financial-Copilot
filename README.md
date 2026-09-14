@@ -1,6 +1,14 @@
-# AI Financial Decision Copilot (Step 1 Foundation & Dashboard)
+# FinCopilot — AI Financial Decision & UPI Assistant
 
-> Modern, high-performance Fintech web application built on the **MERN** stack (MongoDB, Express.js, React.js, Node.js).
+> Modern, high-performance Fintech web application built on the **MERN** stack with real-time AI affordability prediction, dual demo accounts, UPI PIN verification, and EMI protection.
+
+[![Vercel Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://fincopilot-upi.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-fincopilot--upi.vercel.app-brightgreen?style=for-the-badge&logo=google-chrome)](https://fincopilot-upi.vercel.app)
+
+### 🌐 Live Links
+- **Primary Live App**: [https://fincopilot-upi.vercel.app](https://fincopilot-upi.vercel.app)
+- **Production Alias**: [https://fincopilot-psi-two.vercel.app](https://fincopilot-psi-two.vercel.app)
+- **API Health Check**: [https://fincopilot-upi.vercel.app/api/health](https://fincopilot-upi.vercel.app/api/health)
 
 ---
 
