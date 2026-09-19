@@ -2,10 +2,18 @@ import mongoose from 'mongoose';
 
 const accountSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+      default: () => new mongoose.Types.ObjectId().toString(),
+    },
+    id: {
+      type: String,
+      index: true,
+    },
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: String,
       required: true,
+      index: true,
     },
     accountHolder: {
       type: String,
@@ -14,15 +22,15 @@ const accountSchema = new mongoose.Schema(
     },
     bankName: {
       type: String,
-      default: 'Apex Horizon Federal (Simulated)',
+      default: 'HDFC Bank (Simulated UPI)',
     },
     accountNumberMasked: {
       type: String,
-      default: '•••• 8829',
+      default: '•••• 4092',
     },
     accountType: {
       type: String,
-      default: 'Primary Salary & Savings',
+      default: 'Primary Savings & UPI',
     },
     startingBalance: {
       type: Number,
@@ -33,6 +41,14 @@ const accountSchema = new mongoose.Schema(
       type: Number,
       required: true,
       default: 0,
+    },
+    verifiedBalance: {
+      type: Number,
+      default: 0,
+    },
+    lastBalanceCheckDate: {
+      type: Date,
+      default: Date.now,
     },
     totalCredited: {
       type: Number,
@@ -49,7 +65,8 @@ const accountSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    _id: false,
   }
 );
 
-export const Account = mongoose.model('Account', accountSchema);
+export const Account = mongoose.models.Account || mongoose.model('Account', accountSchema);

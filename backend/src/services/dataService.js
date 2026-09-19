@@ -134,6 +134,13 @@ export const dataService = {
     return await memoryStore.createTransaction(txData);
   },
 
+  async updateTransactionCategory(txId, category) {
+    if (isMongooseConnected) {
+      return await Transaction.findByIdAndUpdate(txId, { category }, { new: true });
+    }
+    return await memoryStore.updateTransactionCategory(txId, category);
+  },
+
   // ATOMIC TRANSFER
   async transferBetweenAccounts(transferPayload) {
     return await memoryStore.transferBetweenAccounts(transferPayload);

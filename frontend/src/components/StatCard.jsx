@@ -6,9 +6,9 @@ export const StatCard = ({
   currency = '₹',
   subtitle,
   icon: Icon,
-  accentColor = '#6366F1',
+  accentColor = '#4F46E5',
   badgeText,
-  badgeType = 'neutral', // 'positive' | 'negative' | 'neutral' | 'indigo'
+  badgeType = 'neutral', // 'positive' | 'negative' | 'neutral' | 'indigo' | 'amber'
   isCount = false,
 }) => {
   const formatAmount = (num) => {
@@ -17,7 +17,7 @@ export const StatCard = ({
     return `${currency} ${Number(num).toLocaleString('en-IN')}`;
   };
 
-  const getBadgeStyle = () => {
+  const getBadgeClass = () => {
     switch (badgeType) {
       case 'positive':
         return 'badge-emerald';
@@ -41,6 +41,7 @@ export const StatCard = ({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
+        padding: '20px 22px',
       }}
     >
       {/* Top subtle glow line */}
@@ -48,65 +49,52 @@ export const StatCard = ({
         style={{
           position: 'absolute',
           top: 0,
-          left: '10%',
-          right: '10%',
-          height: '2px',
-          background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
-          opacity: 0.8,
+          left: 0,
+          right: 0,
+          height: '3px',
+          background: accentColor,
         }}
       />
 
       {/* Header with Title and Icon */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-muted)' }}>
           {title}
         </span>
         {Icon && (
           <div
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: `rgba(${
-                accentColor === '#10B981'
-                  ? '16, 185, 129'
-                  : accentColor === '#F43F5E'
-                  ? '244, 63, 94'
-                  : '99, 102, 241'
-              }, 0.12)`,
+              width: '38px',
+              height: '38px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-surface-subtle)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: `1px solid rgba(${
-                accentColor === '#10B981'
-                  ? '16, 185, 129'
-                  : accentColor === '#F43F5E'
-                  ? '244, 63, 94'
-                  : '99, 102, 241'
-              }, 0.25)`,
+              border: '1px solid var(--border-subtle)',
             }}
           >
-            <Icon size={18} color={accentColor} />
+            <Icon size={19} color={accentColor} />
           </div>
         )}
       </div>
 
       {/* Value */}
-      <div style={{ marginBottom: '14px' }}>
-        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.03em' }}>
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-title)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
           {formatAmount(value)}
         </div>
       </div>
 
       {/* Footer / Subtitle & Badge */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
         {subtitle && (
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 500 }}>
             {subtitle}
           </span>
         )}
         {badgeText && (
-          <span className={`badge ${getBadgeStyle()}`} style={{ fontSize: '0.72rem' }}>
+          <span className={`badge ${getBadgeClass()}`} style={{ fontSize: '0.72rem', fontWeight: 700 }}>
             {badgeText}
           </span>
         )}

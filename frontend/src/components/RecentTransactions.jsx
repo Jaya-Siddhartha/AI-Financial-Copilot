@@ -21,6 +21,7 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
       case 'Freelance / Bonus':
         return Briefcase;
       case 'Housing & Rent':
+      case 'Housing':
         return Home;
       case 'Groceries & Food':
         return ShoppingBag;
@@ -57,13 +58,13 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '20px',
+        marginBottom: '18px',
       }}>
         <div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
             Recent Transactions
           </h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
             Latest verified ledger events from simulated account
           </p>
         </div>
@@ -72,9 +73,9 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
           <button
             onClick={onViewAll}
             className="btn btn-secondary"
-            style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+            style={{ padding: '6px 14px', fontSize: '0.82rem' }}
           >
-            View All Transactions
+            View All Ledger
           </button>
         )}
       </div>
@@ -87,12 +88,12 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-faint)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px 16px' }}>Transaction</th>
-                <th style={{ padding: '12px 16px' }}>Category</th>
-                <th style={{ padding: '12px 16px' }}>Date & Time</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Amount</th>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '12px 14px' }}>Transaction</th>
+                <th style={{ padding: '12px 14px' }}>Category</th>
+                <th style={{ padding: '12px 14px' }}>Date & Time</th>
+                <th style={{ padding: '12px 14px' }}>Status</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -104,36 +105,36 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
                   <tr
                     key={tx._id || tx.id || Math.random()}
                     style={{
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderBottom: '1px solid var(--border-subtle)',
                       transition: 'background 0.15s ease',
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)')}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface-hover)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
                     {/* Title & Merchant */}
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div
                           style={{
                             width: '38px',
                             height: '38px',
-                            borderRadius: '10px',
-                            background: isCredit ? 'var(--emerald-subtle)' : 'rgba(255, 255, 255, 0.04)',
+                            borderRadius: 'var(--radius-md)',
+                            background: isCredit ? 'var(--emerald-light)' : 'var(--bg-surface-subtle)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            border: isCredit ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border-subtle)',
+                            border: isCredit ? '1px solid var(--emerald-border)' : '1px solid var(--border-subtle)',
                             flexShrink: 0,
                           }}
                         >
-                          <Icon size={18} color={isCredit ? '#10B981' : '#94A3B8'} />
+                          <Icon size={18} color={isCredit ? 'var(--emerald)' : 'var(--text-muted)'} />
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#FFFFFF' }}>
+                          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-title)' }}>
                             {tx.title}
                           </div>
                           {tx.merchant && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                               {tx.merchant} • {tx.paymentMethod || 'UPI / Transfer'}
                             </div>
                           )}
@@ -142,34 +143,34 @@ export const RecentTransactions = ({ transactions = [], currency = '₹', onView
                     </td>
 
                     {/* Category */}
-                    <td style={{ padding: '14px 16px' }}>
-                      <span className="badge badge-indigo" style={{ fontSize: '0.74rem' }}>
+                    <td style={{ padding: '14px' }}>
+                      <span className="badge badge-indigo" style={{ fontSize: '0.74rem', fontWeight: 600 }}>
                         {tx.category}
                       </span>
                     </td>
 
                     {/* Date */}
-                    <td style={{ padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '14px', fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                       {formatDate(tx.date)}
                     </td>
 
                     {/* Status */}
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px' }}>
                       <span
                         className="badge badge-emerald"
-                        style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                        style={{ fontSize: '0.72rem', padding: '2px 8px', fontWeight: 700 }}
                       >
                         ✓ {tx.status || 'Completed'}
                       </span>
                     </td>
 
                     {/* Amount */}
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                    <td style={{ padding: '14px', textAlign: 'right' }}>
                       <div
                         style={{
-                          fontSize: '0.95rem',
-                          fontWeight: 700,
-                          color: isCredit ? '#34D399' : '#FB7185',
+                          fontSize: '0.98rem',
+                          fontWeight: 800,
+                          color: isCredit ? 'var(--emerald)' : 'var(--rose)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'flex-end',

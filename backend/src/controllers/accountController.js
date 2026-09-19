@@ -1,6 +1,7 @@
 import { dataService } from '../services/dataService.js';
 import { seedDualDemoAccounts } from '../services/seedService.js';
 import { DEMO_USERS } from '../config/store.js';
+import { analyzeFinancialState } from '../services/financialEngine.js';
 
 // Get list of all switchable simulated accounts
 export const getAllAccounts = async (req, res) => {
@@ -80,19 +81,7 @@ export const getCurrentAccount = async (req, res) => {
   }
 };
 
-// Calculate days remaining until due day
-const getDaysUntil = (dueDay) => {
-  const now = new Date();
-  const currentDay = now.getDate();
-
-  if (dueDay >= currentDay) {
-    return dueDay - currentDay;
-  }
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  return daysInMonth - currentDay + dueDay;
-};
-
-// Aggregated Dashboard Data with Simplified Indian Plain-English AI Prediction
+// Aggregated Dashboard Data with Central Financial Engine
 export const getDashboardData = async (req, res) => {
   try {
     const { userId } = req.query;
@@ -110,137 +99,18 @@ export const getDashboardData = async (req, res) => {
       return res.status(404).json({ success: false, hasAccount: false, message: 'Account not found.' });
     }
 
-    // 1. Fetch user's transactions
+    // 1. Fetch user's transactions & EMIs
     const transactions = await dataService.getTransactions({ userId: uId }, 100);
-    const recentTransactions = transactions.slice(0, 8);
+    const recentTransactions = transactions.slice(0, 10);
+    const emis = await dataService.getEMIs(uId);
 
-    // 2. Fetch user's EMIs
-    const rawEmis = await dataService.getEMIs(uId);
-    const emis = rawEmis.map((emi) => {
-      const daysRemaining = emi.dueDay ? getDaysUntil(emi.dueDay) : 10;
-      let reminderBadge = 'Upcoming';
-      let urgencyLevel = 'normal';
-
-      if (emi.status === 'paid_this_cycle') {
-        reminderBadge = 'Paid this cycle';
-        urgencyLevel = 'paid';
-      } else if (daysRemaining === 0) {
-        reminderBadge = 'Due Today!';
-        urgencyLevel = 'critical';
-      } else if (daysRemaining === 1) {
-        reminderBadge = 'Due Tomorrow';
-        urgencyLevel = 'critical';
-      } else if (daysRemaining <= 3) {
-        reminderBadge = `Due in ${daysRemaining} days`;
-        urgencyLevel = 'warning';
-      } else {
-        reminderBadge = `Due in ${daysRemaining} days`;
-        urgencyLevel = 'normal';
-      }
-
-      return {
-        ...emi,
-        daysRemaining,
-        reminderBadge,
-        urgencyLevel,
-      };
+    // 2. Run Central Financial Analysis Engine
+    const analysis = analyzeFinancialState({
+      user,
+      account,
+      transactions,
+      emis,
     });
-
-    // 3. Category distribution & non-fixed debits
-    const categoryMap = {};
-    let totalDebitSum = 0;
-    let totalCreditSum = 0;
-    let nonFixedDebitsSum = 0;
-
-    transactions.forEach((tx) => {
-      const amt = Number(tx.amount) || 0;
-      if (tx.type === 'debit') {
-        totalDebitSum += amt;
-        categoryMap[tx.category] = (categoryMap[tx.category] || 0) + amt;
-        if (tx.category !== 'EMI' && tx.category !== 'Housing') {
-          nonFixedDebitsSum += amt;
-        }
-      } else if (tx.type === 'credit') {
-        totalCreditSum += amt;
-      }
-    });
-
-    const categoryBreakdown = Object.keys(categoryMap).map((cat) => ({
-      category: cat,
-      amount: categoryMap[cat],
-      percentage: totalDebitSum > 0 ? Math.round((categoryMap[cat] / totalDebitSum) * 100) : 0,
-    })).sort((a, b) => b.amount - a.amount);
-
-    // 4. Daily Spending & AI Safe-to-Spend Calculation
-    const currentBalance = Number(account.currentBalance) || 0;
-    const verifiedBalance = account.verifiedBalance !== undefined ? Number(account.verifiedBalance) : currentBalance;
-    const lastBalanceCheckDate = account.lastBalanceCheckDate || new Date().toISOString();
-
-    // Transactions since verification
-    const checkTime = new Date(lastBalanceCheckDate).getTime();
-    let creditsSinceCheck = 0;
-    let debitsSinceCheck = 0;
-
-    transactions.forEach((tx) => {
-      const txTime = new Date(tx.date).getTime();
-      if (txTime > checkTime) {
-        const amt = Number(tx.amount) || 0;
-        if (tx.type === 'credit') creditsSinceCheck += amt;
-        if (tx.type === 'debit') debitsSinceCheck += amt;
-      }
-    });
-
-    const estimatedCurrentBalance = currentBalance;
-    const upcomingUnpaidEMIs = emis.filter((e) => e.status !== 'paid_this_cycle');
-
-    let nextEMI = null;
-    let totalUpcomingEMIAmount = 0;
-    let daysUntilNextEMI = 10;
-
-    if (upcomingUnpaidEMIs.length > 0) {
-      upcomingUnpaidEMIs.sort((a, b) => a.daysRemaining - b.daysRemaining);
-      nextEMI = upcomingUnpaidEMIs[0];
-      totalUpcomingEMIAmount = upcomingUnpaidEMIs.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-      daysUntilNextEMI = nextEMI.daysRemaining || 10;
-    }
-
-    // Daily normal spending estimate
-    const dailyBurnRate = Math.max(500, Math.round(nonFixedDebitsSum / 7));
-    const expectedNormalExpenses = Math.round(dailyBurnRate * Math.max(1, daysUntilNextEMI));
-    const safetyReserve = 2000;
-
-    const totalObligations = totalUpcomingEMIAmount + expectedNormalExpenses;
-    const safeToSpend = Math.max(0, currentBalance - totalUpcomingEMIAmount - expectedNormalExpenses - safetyReserve);
-    const balanceAfterObligations = currentBalance - totalUpcomingEMIAmount;
-
-    // Plain-English AI Status and Advice
-    let status = 'SAFE'; // SAFE | CAUTION | HIGH RISK
-    let plainExplanation = '';
-    let aiAdvice = '';
-
-    if (upcomingUnpaidEMIs.length === 0) {
-      status = 'SAFE';
-      plainExplanation = 'You have no pending EMI obligations this cycle. Your full balance is available to spend.';
-      aiAdvice = 'Your finances look completely safe.';
-    } else if (currentBalance < totalUpcomingEMIAmount) {
-      status = 'HIGH RISK';
-      const shortfall = totalUpcomingEMIAmount - currentBalance;
-      plainExplanation = `Your current estimated balance may not be enough to cover your upcoming ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI due in ${daysUntilNextEMI} days. You are short by ₹${shortfall.toLocaleString('en-IN')}.`;
-      aiAdvice = `Stop all non-essential payments and arrange ₹${shortfall.toLocaleString('en-IN')} before your EMI due date.`;
-    } else if (currentBalance < totalObligations) {
-      status = 'HIGH RISK';
-      const projectedShortfall = totalObligations - currentBalance;
-      plainExplanation = `Based on your recent daily spending pattern, you may run out of money before your ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI due in ${daysUntilNextEMI} days.`;
-      aiAdvice = `Your spending is putting your upcoming EMI at risk. Limit your daily spending to under ₹${Math.max(0, Math.round(balanceAfterObligations / daysUntilNextEMI)).toLocaleString('en-IN')}/day.`;
-    } else if (currentBalance < totalObligations + safetyReserve) {
-      status = 'CAUTION';
-      plainExplanation = `Your balance is getting close to the amount needed for your upcoming ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI.`;
-      aiAdvice = 'Avoid large non-essential purchases until after your EMI payment clears.';
-    } else {
-      status = 'SAFE';
-      plainExplanation = `Your balance is sufficient for your upcoming ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI and expected normal spending.`;
-      aiAdvice = `Your upcoming EMI is protected. You can safely spend up to ₹${safeToSpend.toLocaleString('en-IN')} without putting your upcoming EMI at risk.`;
-    }
 
     return res.status(200).json({
       success: true,
@@ -253,53 +123,64 @@ export const getDashboardData = async (req, res) => {
           mobile: user.mobile || '+91 9876543210',
           phoneOnly: user.phoneOnly || '9876543210',
           upiId: user.upiId || `${user.name.toLowerCase()}@fin`,
+          monthlyIncome: user.monthlyIncome || 50000,
+          salaryDate: user.salaryDate || 1,
           currency: '₹',
         },
         account: {
           id: account.id || account._id,
           bankName: account.bankName || 'HDFC Bank (Simulated UPI)',
           accountNumberMasked: account.accountNumberMasked || '•••• 4092',
-          currentBalance: currentBalance,
-          verifiedBalance: verifiedBalance,
-          lastBalanceCheckDate: lastBalanceCheckDate,
+          currentBalance: analysis.currentBalance,
+          verifiedBalance: analysis.verifiedBalance,
+          lastBalanceCheckDate: analysis.lastBalanceCheckDate,
           startingBalance: account.startingBalance,
-          totalCredited: account.totalCredited || totalCreditSum,
-          totalDebited: account.totalDebited || totalDebitSum,
+          totalCredited: account.totalCredited || 0,
+          totalDebited: account.totalDebited || 0,
           currency: '₹',
         },
         metrics: {
-          currentBalance,
-          estimatedCurrentBalance,
-          verifiedBalance,
-          lastBalanceCheckDate,
-          creditsSinceCheck,
-          debitsSinceCheck,
-          safeToSpend,
-          totalUpcomingEMI: totalUpcomingEMIAmount,
-          nextEMI,
-          riskStatus: status,
-          dailyBurnRate,
+          currentBalance: analysis.currentBalance,
+          estimatedCurrentBalance: analysis.estimatedCurrentBalance,
+          verifiedBalance: analysis.verifiedBalance,
+          lastBalanceCheckDate: analysis.lastBalanceCheckDate,
+          creditsSinceCheck: analysis.creditsSinceCheck,
+          debitsSinceCheck: analysis.debitsSinceCheck,
+          safeToSpend: analysis.safeToSpend,
+          totalUpcomingEMI: analysis.totalUpcomingEMI,
+          nextEMI: analysis.nextEMI,
+          riskStatus: analysis.riskStatus,
+          dailyBurnRate: analysis.dailyBurnRate,
+          expectedNormalExpenses: analysis.expectedNormalExpenses,
+          safetyReserve: analysis.safetyReserve,
+          riskReason: analysis.riskReason,
+          projectedShortfall: analysis.projectedShortfall,
         },
         aiPrediction: {
-          status,
-          summary: plainExplanation,
-          advice: aiAdvice,
-          recommendation: aiAdvice,
-          currentBalance,
-          estimatedCurrentBalance,
-          verifiedBalance,
-          lastBalanceCheckDate,
-          upcomingEMIAmount: totalUpcomingEMIAmount,
-          daysUntilEMI: daysUntilNextEMI,
-          expectedNormalExpenses,
-          safetyReserve,
-          safeToSpend,
-          balanceAfterObligations,
-          nextEMI,
+          status: analysis.riskStatus,
+          summary: analysis.summary,
+          advice: analysis.advice,
+          recommendation: analysis.advice,
+          riskReason: analysis.riskReason,
+          currentBalance: analysis.currentBalance,
+          estimatedCurrentBalance: analysis.estimatedCurrentBalance,
+          verifiedBalance: analysis.verifiedBalance,
+          lastBalanceCheckDate: analysis.lastBalanceCheckDate,
+          upcomingEMIAmount: analysis.totalUpcomingEMI,
+          daysUntilEMI: analysis.nextEMI ? (analysis.nextEMI.daysRemaining || 10) : 10,
+          expectedNormalExpenses: analysis.expectedNormalExpenses,
+          safetyReserve: analysis.safetyReserve,
+          safeToSpend: analysis.safeToSpend,
+          balanceAfterObligations: analysis.balanceAfterObligations,
+          nextEMI: analysis.nextEMI,
         },
-        emis,
-        categoryBreakdown,
+        emis: analysis.enrichedEmis,
+        categoryBreakdown: analysis.categoryBreakdown,
         recentTransactions,
+        projected7Days: analysis.projected7Days,
+        forecastHorizons: analysis.forecastHorizons,
+        timelineEvents: analysis.timelineEvents,
+        salaryCycle: analysis.salaryCycle,
       },
     });
   } catch (error) {

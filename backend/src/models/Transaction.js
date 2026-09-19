@@ -2,15 +2,23 @@ import mongoose from 'mongoose';
 
 const transactionSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+      default: () => new mongoose.Types.ObjectId().toString(),
+    },
+    id: {
+      type: String,
+      index: true,
+    },
     accountId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Account',
+      type: String,
       required: true,
+      index: true,
     },
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: String,
       required: true,
+      index: true,
     },
     title: {
       type: String,
@@ -24,21 +32,7 @@ const transactionSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: [
-        'Salary',
-        'Freelance / Bonus',
-        'Housing & Rent',
-        'Groceries & Food',
-        'Dining & Cafes',
-        'Utilities & Bills',
-        'Shopping & Lifestyle',
-        'Transport & Fuel',
-        'Entertainment & Subscriptions',
-        'Healthcare & Wellness',
-        'Investments & Savings',
-        'Other',
-      ],
-      default: 'Other',
+      default: 'Daily Expenses',
     },
     type: {
       type: String,
@@ -54,6 +48,7 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       required: true,
       default: Date.now,
+      index: true,
     },
     description: {
       type: String,
@@ -66,12 +61,15 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      default: 'UPI / Direct Bank Transfer',
+      default: 'UPI',
     },
   },
   {
     timestamps: true,
+    _id: false,
   }
 );
 
-export const Transaction = mongoose.model('Transaction', transactionSchema);
+transactionSchema.index({ userId: 1, date: -1 });
+
+export const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);

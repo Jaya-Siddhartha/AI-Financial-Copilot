@@ -12,6 +12,7 @@ import { PaymentsPage } from './pages/PaymentsPage';
 import { EMIPage } from './pages/EMIPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { AnalysisPage } from './pages/AnalysisPage';
+import { StartPage } from './pages/StartPage';
 import {
   fetchDashboardData,
   fetchAllAccounts,
@@ -150,8 +151,8 @@ export function App() {
             gap: '16px',
             color: 'var(--text-muted)',
           }}>
-            <Loader2 size={36} className="animate-spin" color="#6366F1" />
-            <div style={{ fontSize: '0.92rem', fontWeight: 500 }}>
+            <Loader2 size={36} className="animate-spin" color="var(--primary)" />
+            <div style={{ fontSize: '0.94rem', fontWeight: 600 }}>
               Connecting to Indian UPI Simulated Ledger...
             </div>
           </div>
@@ -160,8 +161,8 @@ export function App() {
         {/* Backend Error State */}
         {error && (
           <div className="glass-card" style={{
-            borderColor: 'rgba(244, 63, 94, 0.4)',
-            background: 'rgba(244, 63, 94, 0.08)',
+            borderColor: 'var(--rose-border)',
+            background: 'var(--rose-light)',
             marginBottom: '24px',
             display: 'flex',
             alignItems: 'center',
@@ -169,12 +170,12 @@ export function App() {
             gap: '16px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <AlertCircle size={22} color="#FB7185" />
+              <AlertCircle size={22} color="var(--rose)" />
               <div>
-                <div style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '0.92rem' }}>
+                <div style={{ fontWeight: 700, color: 'var(--rose-text)', fontSize: '0.94rem' }}>
                   Connection Notice
                 </div>
-                <div style={{ fontSize: '0.82rem', color: '#FB7185' }}>{error}</div>
+                <div style={{ fontSize: '0.84rem', color: 'var(--rose-text)' }}>{error}</div>
               </div>
             </div>
             <button
@@ -191,6 +192,13 @@ export function App() {
         {/* Active Page Views */}
         {dashboardData && (
           <>
+            {activeTab === 'start' && (
+              <StartPage
+                onStart={() => setActiveTab('dashboard')}
+                onNavigateToTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+
             {activeTab === 'dashboard' && (
               <Dashboard
                 dashboardData={dashboardData}
@@ -291,4 +299,3 @@ export function App() {
 }
 
 export default App;
-
