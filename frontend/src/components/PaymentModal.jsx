@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Smartphone,
   User,
-  DollarSign,
   AlertCircle,
   Check,
   Send,
@@ -11,6 +10,7 @@ import {
   Zap,
   KeyRound,
   AtSign,
+  X,
 } from 'lucide-react';
 import { makePaymentApi } from '../services/api';
 
@@ -53,11 +53,11 @@ export const PaymentModal = ({
 
   // Indian demo contacts
   const demoContacts = [
-    { name: 'Rahul Sharma', phone: '9123456780', upiId: 'rahul@fin', initial: 'R', color: '#6366F1' },
-    { name: 'Priya Patel', phone: '9823456781', upiId: 'priya@okhdfc', initial: 'P', color: '#10B981' },
-    { name: 'Amit Kumar (Landlord)', phone: '9988776655', upiId: 'amit.rent@fin', initial: 'A', color: '#F59E0B' },
-    { name: 'Vikram Mehta', phone: '9012345678', upiId: 'vikram@paytm', initial: 'V', color: '#EC4899' },
-    { name: 'Ananya Roy', phone: '9345678901', upiId: 'ananya@icici', initial: 'A', color: '#38BDF8' },
+    { name: 'Rahul Sharma', phone: '9123456780', upiId: 'rahul@fin', initial: 'R', color: '#4F46E5' },
+    { name: 'Priya Patel', phone: '9823456781', upiId: 'priya@okhdfc', initial: 'P', color: '#059669' },
+    { name: 'Amit Kumar (Landlord)', phone: '9988776655', upiId: 'amit.rent@fin', initial: 'A', color: '#D97706' },
+    { name: 'Vikram Mehta', phone: '9012345678', upiId: 'vikram@paytm', initial: 'V', color: '#7C3AED' },
+    { name: 'Ananya Roy', phone: '9345678901', upiId: 'ananya@icici', initial: 'A', color: '#0284C7' },
   ];
 
   const handleSelectContact = (contact) => {
@@ -149,23 +149,23 @@ export const PaymentModal = ({
 
   return (
     <div className="modal-overlay" style={{ zIndex: 1050 }}>
-      <div className="modal-content" style={{ maxWidth: '480px', padding: '26px' }}>
+      <div className="modal-content" style={{ maxWidth: '480px', padding: '28px' }}>
         {/* Header with Balance Indicator */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
           <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
               Pay via UPI
             </h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Instant transfer with simulated UPI PIN authorization
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+              Instant simulated transfer with 4-digit PIN authorization
             </p>
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Available Balance
             </span>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10B981' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--emerald)' }}>
               ₹{currentBalance.toLocaleString('en-IN')}
             </div>
           </div>
@@ -174,27 +174,27 @@ export const PaymentModal = ({
         {error && (
           <div
             style={{
-              background: 'rgba(244, 63, 94, 0.12)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              borderRadius: 'var(--radius-sm)',
+              background: 'var(--rose-light)',
+              border: '1px solid var(--rose-border)',
+              borderRadius: 'var(--radius-md)',
               padding: '10px 14px',
-              color: '#FB7185',
-              fontSize: '0.82rem',
+              color: 'var(--rose-text)',
+              fontSize: '0.84rem',
               marginBottom: '16px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
             }}
           >
-            <AlertCircle size={16} color="#FB7185" />
+            <AlertCircle size={16} color="var(--rose)" style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Step 1: Recent Contacts Carousel/Tray */}
+        {/* Recent Contacts Carousel/Tray */}
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px' }}>
-            Select Recent Contact:
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '8px' }}>
+            Quick Contacts:
           </div>
           <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
             {demoContacts.map((c) => {
@@ -209,9 +209,9 @@ export const PaymentModal = ({
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '4px',
-                    minWidth: '68px',
-                    background: isSelected ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                    border: isSelected ? '1px solid #6366F1' : '1px solid var(--border-subtle)',
+                    minWidth: '70px',
+                    background: isSelected ? 'var(--primary-light)' : 'var(--bg-surface-subtle)',
+                    border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-md)',
                     padding: '8px 4px',
                     cursor: 'pointer',
@@ -228,13 +228,13 @@ export const PaymentModal = ({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
                     }}
                   >
                     {c.initial}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: isSelected ? '#FFFFFF' : 'var(--text-muted)', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '60px' }}>
+                  <div style={{ fontSize: '0.74rem', color: isSelected ? 'var(--primary)' : 'var(--text-title)', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '64px' }}>
                     {c.name.split(' ')[0]}
                   </div>
                 </button>
@@ -249,7 +249,7 @@ export const PaymentModal = ({
             type="button"
             onClick={() => setPayMode('mobile')}
             className={`btn ${payMode === 'mobile' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ flex: 1, padding: '6px 12px', fontSize: '0.78rem' }}
+            style={{ flex: 1, padding: '7px 12px', fontSize: '0.82rem' }}
           >
             <Smartphone size={14} />
             <span>To Mobile Number</span>
@@ -258,7 +258,7 @@ export const PaymentModal = ({
             type="button"
             onClick={() => setPayMode('upi')}
             className={`btn ${payMode === 'upi' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ flex: 1, padding: '6px 12px', fontSize: '0.78rem' }}
+            style={{ flex: 1, padding: '7px 12px', fontSize: '0.82rem' }}
           >
             <AtSign size={14} />
             <span>To UPI ID</span>
@@ -268,7 +268,6 @@ export const PaymentModal = ({
         {/* Payment Form */}
         <form onSubmit={handleSubmit}>
           {payMode === 'mobile' ? (
-            /* Mobile Number Input with Fixed +91 */
             <div className="form-group" style={{ marginBottom: '12px' }}>
               <label className="form-label">
                 <span>Recipient Mobile Number</span>
@@ -277,11 +276,11 @@ export const PaymentModal = ({
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div
                   style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
+                    background: 'var(--bg-surface-subtle)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-md)',
                     padding: '10px 14px',
-                    color: '#FFFFFF',
+                    color: 'var(--text-title)',
                     fontWeight: 700,
                     fontSize: '0.95rem',
                     display: 'flex',
@@ -304,7 +303,6 @@ export const PaymentModal = ({
               </div>
             </div>
           ) : (
-            /* UPI ID Input */
             <div className="form-group" style={{ marginBottom: '12px' }}>
               <label className="form-label">
                 <span>Recipient UPI ID</span>
@@ -322,7 +320,7 @@ export const PaymentModal = ({
             </div>
           )}
 
-          {/* Recipient Name (Auto or custom) */}
+          {/* Recipient Name */}
           <div className="form-group" style={{ marginBottom: '12px' }}>
             <label className="form-label">
               <span>Recipient Name</span>
@@ -347,28 +345,28 @@ export const PaymentModal = ({
               <input
                 type="number"
                 className="form-input"
-                placeholder="₹ 500"
+                placeholder="500"
                 min="1"
                 max={currentBalance}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
                 style={{
-                  paddingLeft: '40px',
+                  paddingLeft: '36px',
                   fontSize: '1.3rem',
                   fontWeight: 800,
-                  color: '#FFFFFF',
+                  color: 'var(--text-title)',
                 }}
               />
               <span
                 style={{
                   position: 'absolute',
-                  left: '16px',
+                  left: '14px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   fontSize: '1.2rem',
-                  fontWeight: 700,
-                  color: '#10B981',
+                  fontWeight: 800,
+                  color: 'var(--emerald)',
                 }}
               >
                 ₹
@@ -376,20 +374,20 @@ export const PaymentModal = ({
             </div>
 
             {/* Quick Amount Suggestion Pills */}
-            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
               {[200, 500, 1000, 2000, 5000].map((quickAmt) => (
                 <button
                   key={quickAmt}
                   type="button"
                   onClick={() => setAmount(String(quickAmt))}
                   style={{
-                    background: amount === String(quickAmt) ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                    border: amount === String(quickAmt) ? '1px solid #6366F1' : '1px solid var(--border-subtle)',
+                    background: amount === String(quickAmt) ? 'var(--primary-light)' : 'var(--bg-surface-subtle)',
+                    border: amount === String(quickAmt) ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-sm)',
-                    padding: '3px 8px',
-                    color: '#FFFFFF',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
+                    padding: '3px 9px',
+                    color: amount === String(quickAmt) ? 'var(--primary)' : 'var(--text-main)',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
@@ -402,19 +400,19 @@ export const PaymentModal = ({
           {/* UPI PIN Input Box */}
           <div
             style={{
-              background: 'rgba(99, 102, 241, 0.08)',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              background: 'var(--primary-light)',
+              border: '1px solid var(--primary-border)',
               borderRadius: 'var(--radius-md)',
-              padding: '12px 14px',
+              padding: '14px 16px',
               marginBottom: '20px',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#FFFFFF', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <KeyRound size={15} color="#818CF8" />
+              <label style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--primary-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <KeyRound size={15} color="var(--primary)" />
                 <span>Enter 4-Digit UPI PIN</span>
               </label>
-              <span style={{ fontSize: '0.7rem', color: '#A5B4FC' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--primary-text)', fontWeight: 600 }}>
                 Demo PIN: <strong>1234</strong>
               </span>
             </div>
@@ -435,10 +433,10 @@ export const PaymentModal = ({
                 fontSize: '1.4rem',
                 letterSpacing: '0.4em',
                 fontWeight: 800,
-                background: 'rgba(15, 21, 35, 0.9)',
-                border: '1px solid rgba(99, 102, 241, 0.5)',
+                background: '#FFFFFF',
+                border: '1px solid var(--primary-border)',
                 borderRadius: 'var(--radius-sm)',
-                color: '#FFFFFF',
+                color: 'var(--text-title)',
                 padding: '8px 12px',
               }}
             />

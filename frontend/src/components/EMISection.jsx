@@ -43,11 +43,11 @@ export const EMISection = ({
     <div className="glass-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
             Upcoming EMI Obligations
           </h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-            Scheduled loan installments analyzed by FinCopilot AI
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+            Scheduled loan installments monitored by FinCopilot AI
           </p>
         </div>
 
@@ -55,7 +55,7 @@ export const EMISection = ({
           type="button"
           onClick={onOpenAddEMI}
           className="btn btn-secondary"
-          style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+          style={{ padding: '7px 14px', fontSize: '0.84rem' }}
         >
           <Plus size={15} />
           <span>Add EMI</span>
@@ -65,12 +65,12 @@ export const EMISection = ({
       {actionError && (
         <div
           style={{
-            background: 'rgba(244, 63, 94, 0.12)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
+            background: 'var(--rose-light)',
+            border: '1px solid var(--rose-border)',
             borderRadius: 'var(--radius-sm)',
             padding: '10px 14px',
-            color: '#FB7185',
-            fontSize: '0.82rem',
+            color: 'var(--rose-text)',
+            fontSize: '0.84rem',
             marginBottom: '14px',
           }}
         >
@@ -79,11 +79,11 @@ export const EMISection = ({
       )}
 
       {emis.length === 0 ? (
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
           No active EMI obligations configured. Click "Add EMI" to track loan installments.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           {emis.map((emi) => {
             const isPaid = emi.status === 'paid_this_cycle';
             const isInsufficient = currentBalance < Number(emi.amount) && !isPaid;
@@ -92,64 +92,65 @@ export const EMISection = ({
               <div
                 key={emi._id || emi.id || Math.random()}
                 style={{
-                  background: isPaid ? 'rgba(16, 185, 129, 0.05)' : 'rgba(15, 21, 35, 0.65)',
-                  border: isPaid ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '16px',
+                  background: isPaid ? 'var(--emerald-light)' : 'var(--bg-surface-subtle)',
+                  border: isPaid ? '1px solid var(--emerald-border)' : '1px solid var(--border-card)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '18px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: '12px',
+                  gap: '14px',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#FFFFFF' }}>
+                    <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-title)' }}>
                       {emi.name}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                      <Building size={13} />
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                      <Building size={14} />
                       <span>{emi.lender}</span>
                     </div>
                   </div>
 
-                  <span className={`badge ${getBadgeClass(emi.urgencyLevel)}`} style={{ fontSize: '0.72rem' }}>
+                  <span className={`badge ${getBadgeClass(emi.urgencyLevel)}`} style={{ fontSize: '0.72rem', fontWeight: 700 }}>
                     {emi.reminderBadge || 'Upcoming'}
                   </span>
                 </div>
 
                 {/* Amount & Installments */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '4px' }}>
                   <div>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                       Installment Amount
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FCD34D' }}>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '2px' }}>
                       {currency} {Number(emi.amount).toLocaleString('en-IN')}
                     </div>
                   </div>
 
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
                       Due Cycle
                     </div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#FFFFFF' }}>
+                    <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
                       {emi.dueDay || 10}th of month
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Action */}
-                <div style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>
+                <div style={{ paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                     {emi.remainingInstallments ? `${emi.remainingInstallments} installments left` : 'Monthly'}
                   </div>
 
                   {isPaid ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34D399', fontSize: '0.78rem', fontWeight: 600 }}>
-                      <CheckCircle2 size={15} />
-                      <span>Paid for this cycle</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--emerald)', fontSize: '0.82rem', fontWeight: 700 }}>
+                      <CheckCircle2 size={16} />
+                      <span>Paid this cycle</span>
                     </div>
                   ) : (
                     <button
@@ -157,7 +158,7 @@ export const EMISection = ({
                       disabled={payingId === (emi._id || emi.id) || isInsufficient}
                       onClick={() => handlePayEMI(emi)}
                       className="btn btn-emerald"
-                      style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                      style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700 }}
                       title={isInsufficient ? 'Insufficient balance to settle EMI' : 'Pay EMI now'}
                     >
                       {payingId === (emi._id || emi.id) ? (
@@ -167,7 +168,7 @@ export const EMISection = ({
                       ) : (
                         <>
                           <span>Pay EMI Now</span>
-                          <ArrowRight size={13} />
+                          <ArrowRight size={14} />
                         </>
                       )}
                     </button>

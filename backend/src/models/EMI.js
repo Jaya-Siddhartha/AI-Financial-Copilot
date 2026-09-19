@@ -2,14 +2,21 @@ import mongoose from 'mongoose';
 
 const emiSchema = new mongoose.Schema(
   {
+    _id: {
+      type: String,
+      default: () => new mongoose.Types.ObjectId().toString(),
+    },
+    id: {
+      type: String,
+      index: true,
+    },
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: String,
       required: true,
+      index: true,
     },
     accountId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Account',
+      type: String,
       required: true,
     },
     name: {
@@ -59,7 +66,10 @@ const emiSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    _id: false,
   }
 );
 
-export const EMI = mongoose.model('EMI', emiSchema);
+emiSchema.index({ userId: 1, dueDay: 1 });
+
+export const EMI = mongoose.models.EMI || mongoose.model('EMI', emiSchema);

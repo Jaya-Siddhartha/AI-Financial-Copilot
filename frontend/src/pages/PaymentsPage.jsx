@@ -26,50 +26,50 @@ export const PaymentsPage = ({
 
   const estimatedBalance = Number(metrics?.currentBalance ?? account?.currentBalance ?? 0);
   const verifiedBalance = Number(metrics?.verifiedBalance ?? account?.verifiedBalance ?? estimatedBalance);
-  const lastVerifiedDate = metrics?.lastBalanceCheckDate || account?.lastBalanceCheckDate;
 
   const quickContacts = [
-    { name: 'Rahul Sharma', phone: '9123456780', upiId: 'rahul@fin', initial: 'R', color: '#6366F1' },
-    { name: 'Priya Patel', phone: '9823456781', upiId: 'priya@okhdfc', initial: 'P', color: '#10B981' },
-    { name: 'Amit Kumar (Landlord)', phone: '9988776655', upiId: 'amit@paytm', initial: 'A', color: '#F59E0B' },
-    { name: 'Vikram Mehta', phone: '9012345678', upiId: 'vikram@icici', initial: 'V', color: '#EC4899' },
-    { name: 'Ananya Roy', phone: '9345678901', upiId: 'ananya@fin', initial: 'A', color: '#38BDF8' },
+    { name: 'Rahul Sharma', phone: '9123456780', upiId: 'rahul@fin', initial: 'R', color: '#4F46E5' },
+    { name: 'Priya Patel', phone: '9823456781', upiId: 'priya@okhdfc', initial: 'P', color: '#059669' },
+    { name: 'Amit Kumar (Landlord)', phone: '9988776655', upiId: 'amit@paytm', initial: 'A', color: '#D97706' },
+    { name: 'Vikram Mehta', phone: '9012345678', upiId: 'vikram@icici', initial: 'V', color: '#7C3AED' },
+    { name: 'Ananya Roy', phone: '9345678901', upiId: 'ananya@fin', initial: 'A', color: '#0284C7' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Banner Card */}
       <div
         className="glass-card"
         style={{
-          background: 'linear-gradient(135deg, rgba(18, 24, 38, 0.9) 0%, rgba(30, 27, 75, 0.4) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #EEF2FF 100%)',
+          border: '1px solid var(--primary-border)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '20px',
+          padding: '24px 28px',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Send size={20} color="#818CF8" />
-            <h2 style={{ fontSize: '1.45rem', fontWeight: 700, margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <Send size={22} color="var(--primary)" />
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--text-title)', letterSpacing: '-0.02em' }}>
               UPI Payments Hub
             </h2>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', margin: 0, maxWidth: '480px' }}>
-            Instant Indian UPI transfers using 10-digit mobile (+91) or UPI ID. Protected by 4-digit UPI PIN.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0, maxWidth: '520px', lineHeight: 1.5 }}>
+            Instant simulated Indian UPI transfers to 10-digit mobile numbers (+91) or UPI IDs with PIN authorization.
           </p>
         </div>
 
         {/* Current Balances & Actions */}
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
-              Estimated Balance
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+              Available Balance
             </div>
-            <div style={{ fontSize: '1.55rem', fontWeight: 800, color: '#10B981' }}>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--emerald)' }}>
               ₹{estimatedBalance.toLocaleString('en-IN')}
             </div>
           </div>
@@ -77,7 +77,7 @@ export const PaymentsPage = ({
           <button
             onClick={onOpenPayment}
             className="btn btn-primary"
-            style={{ padding: '9px 18px', fontSize: '0.88rem', fontWeight: 700 }}
+            style={{ padding: '10px 20px', fontSize: '0.9rem', fontWeight: 700 }}
           >
             <Send size={15} />
             <span>Pay Now</span>
@@ -87,9 +87,9 @@ export const PaymentsPage = ({
             <button
               onClick={onOpenCheckBalance}
               className="btn btn-secondary"
-              style={{ padding: '9px 14px', fontSize: '0.84rem' }}
+              style={{ padding: '10px 16px', fontSize: '0.86rem' }}
             >
-              <Lock size={14} color="#818CF8" />
+              <Lock size={15} color="var(--primary)" />
               <span>Check Balance</span>
             </button>
           )}
@@ -98,13 +98,13 @@ export const PaymentsPage = ({
 
       {/* Send to Contacts (1-Click) */}
       <div className="glass-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
               Send to Contacts
             </h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Tap any contact to immediately start UPI payment
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+              Tap any contact to immediately launch the UPI payment modal
             </p>
           </div>
         </div>
@@ -120,7 +120,7 @@ export const PaymentsPage = ({
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '8px',
-                minWidth: '85px',
+                minWidth: '90px',
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
@@ -128,17 +128,17 @@ export const PaymentsPage = ({
             >
               <div
                 style={{
-                  width: '54px',
-                  height: '54px',
+                  width: '56px',
+                  height: '56px',
                   borderRadius: '50%',
                   background: c.color,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#FFFFFF',
-                  fontWeight: 700,
-                  fontSize: '1.2rem',
-                  boxShadow: `0 4px 14px ${c.color}40`,
+                  fontWeight: 800,
+                  fontSize: '1.25rem',
+                  boxShadow: `0 4px 14px ${c.color}35`,
                   transition: 'transform 0.15s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
@@ -146,7 +146,7 @@ export const PaymentsPage = ({
               >
                 {c.initial}
               </div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#FFFFFF', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-title)', textAlign: 'center' }}>
                 {c.name}
               </div>
             </button>
@@ -155,31 +155,31 @@ export const PaymentsPage = ({
       </div>
 
       {/* Payment Modes Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
         <div
           onClick={onOpenPayment}
           className="glass-card glass-card-interactive"
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '18px' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}
         >
           <div
             style={{
               width: '48px',
               height: '48px',
-              borderRadius: '14px',
-              background: 'rgba(99, 102, 241, 0.15)',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--primary-light)',
+              border: '1px solid var(--primary-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Smartphone size={22} color="#818CF8" />
+            <Smartphone size={22} color="var(--primary)" />
           </div>
           <div>
-            <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#FFFFFF' }}>
+            <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Pay to Mobile Number
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
               +91 10-digit Indian numbers
             </div>
           </div>
@@ -188,27 +188,27 @@ export const PaymentsPage = ({
         <div
           onClick={onOpenPayment}
           className="glass-card glass-card-interactive"
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '18px' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}
         >
           <div
             style={{
               width: '48px',
               height: '48px',
-              borderRadius: '14px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--blue-light)',
+              border: '1px solid var(--blue-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <AtSign size={22} color="#38BDF8" />
+            <AtSign size={22} color="var(--blue)" />
           </div>
           <div>
-            <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#FFFFFF' }}>
+            <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Pay to UPI ID / VPA
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
               e.g. rahul@fin, user@upi
             </div>
           </div>
@@ -217,27 +217,27 @@ export const PaymentsPage = ({
         <div
           onClick={onOpenCheckBalance}
           className="glass-card glass-card-interactive"
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '18px' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}
         >
           <div
             style={{
               width: '48px',
               height: '48px',
-              borderRadius: '14px',
-              background: 'rgba(245, 158, 11, 0.15)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--amber-light)',
+              border: '1px solid var(--amber-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Lock size={22} color="#F59E0B" />
+            <Lock size={22} color="var(--amber)" />
           </div>
           <div>
-            <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#FFFFFF' }}>
+            <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Check Bank Balance
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
               Verify with 4-digit UPI PIN
             </div>
           </div>
@@ -246,27 +246,27 @@ export const PaymentsPage = ({
         <div
           onClick={onOpenReceive}
           className="glass-card glass-card-interactive"
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '18px' }}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px', padding: '20px' }}
         >
           <div
             style={{
               width: '48px',
               height: '48px',
-              borderRadius: '14px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--emerald-light)',
+              border: '1px solid var(--emerald-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <ArrowDownLeft size={22} color="#10B981" />
+            <ArrowDownLeft size={22} color="var(--emerald)" />
           </div>
           <div>
-            <div style={{ fontSize: '0.94rem', fontWeight: 700, color: '#FFFFFF' }}>
+            <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Receive Money
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
               Simulate cash inflow
             </div>
           </div>
@@ -276,7 +276,7 @@ export const PaymentsPage = ({
       {/* Recent Payment History */}
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
             Recent Payment History
           </h3>
         </div>
@@ -291,8 +291,8 @@ export const PaymentsPage = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  background: 'rgba(15, 21, 35, 0.5)',
+                  padding: '14px 18px',
+                  background: 'var(--bg-surface-subtle)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                 }}
@@ -300,32 +300,33 @@ export const PaymentsPage = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: isCredit ? 'var(--emerald-subtle)' : 'rgba(255, 255, 255, 0.04)',
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isCredit ? 'var(--emerald-light)' : 'var(--bg-surface)',
+                      border: isCredit ? '1px solid var(--emerald-border)' : '1px solid var(--border-subtle)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    {isCredit ? <ArrowDownLeft size={16} color="#10B981" /> : <ArrowUpRight size={16} color="#FB7185" />}
+                    {isCredit ? <ArrowDownLeft size={16} color="var(--emerald)" /> : <ArrowUpRight size={16} color="var(--rose)" />}
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#FFFFFF' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-title)' }}>
                       {tx.title}
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                       {tx.paymentMethod || 'UPI'} • {new Date(tx.date).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: isCredit ? '#34D399' : '#FB7185' }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: isCredit ? 'var(--emerald)' : 'var(--rose)' }}>
                     {isCredit ? '+' : '-'}₹{Number(tx.amount).toLocaleString('en-IN')}
                   </div>
-                  <span className="badge badge-emerald" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                  <span className="badge badge-emerald" style={{ fontSize: '0.7rem', padding: '2px 8px', fontWeight: 700 }}>
                     Completed
                   </span>
                 </div>
@@ -337,4 +338,3 @@ export const PaymentsPage = ({
     </div>
   );
 };
-

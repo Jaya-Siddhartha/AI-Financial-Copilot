@@ -9,6 +9,7 @@ import {
   Lock,
   Wallet,
   Shield,
+  ArrowRight,
 } from 'lucide-react';
 
 export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
@@ -25,6 +26,7 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
     safetyReserve = 2000,
     safeToSpend = 16570,
     balanceAfterObligations = 30000,
+    reasons = [],
     nextEMI,
   } = aiPrediction;
 
@@ -32,36 +34,38 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
   const isCaution = status === 'CAUTION';
   const isHighRisk = status === 'HIGH RISK';
 
-  const statusColor = isSafe ? '#10B981' : isCaution ? '#F59E0B' : '#F43F5E';
+  const statusColor = isSafe ? 'var(--emerald)' : isCaution ? 'var(--amber)' : 'var(--rose)';
   const statusBg = isSafe
-    ? 'rgba(16, 185, 129, 0.1)'
+    ? 'var(--emerald-light)'
     : isCaution
-    ? 'rgba(245, 158, 11, 0.1)'
-    : 'rgba(244, 63, 94, 0.12)';
+    ? 'var(--amber-light)'
+    : 'var(--rose-light)';
   const statusBorder = isSafe
-    ? 'rgba(16, 185, 129, 0.3)'
+    ? 'var(--emerald-border)'
     : isCaution
-    ? 'rgba(245, 158, 11, 0.3)'
-    : 'rgba(244, 63, 94, 0.4)';
+    ? 'var(--amber-border)'
+    : 'var(--rose-border)';
+  const statusBadgeClass = isSafe ? 'badge-emerald' : isCaution ? 'badge-amber' : 'badge-rose';
 
   return (
     <div
       className="glass-card"
       style={{
         border: `1px solid ${statusBorder}`,
-        background: `linear-gradient(135deg, ${statusBg} 0%, rgba(18, 24, 38, 0.85) 100%)`,
+        background: 'var(--bg-surface)',
         position: 'relative',
         overflow: 'hidden',
+        boxShadow: 'var(--shadow-card)',
       }}
     >
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
+              width: '44px',
+              height: '44px',
+              borderRadius: 'var(--radius-md)',
               background: statusBg,
               border: `1px solid ${statusBorder}`,
               display: 'flex',
@@ -70,35 +74,24 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
             }}
           >
             {isSafe ? (
-              <ShieldCheck size={24} color="#10B981" />
+              <ShieldCheck size={24} color="var(--emerald)" />
             ) : isCaution ? (
-              <AlertTriangle size={24} color="#F59E0B" />
+              <AlertTriangle size={24} color="var(--amber)" />
             ) : (
-              <AlertTriangle size={24} color="#F43F5E" />
+              <AlertTriangle size={24} color="var(--rose)" />
             )}
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
-                AI Financial Affordability & Prediction
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-title)', letterSpacing: '-0.02em' }}>
+                AI Financial Affordability & Outlook
               </h3>
-              <span
-                style={{
-                  fontSize: '0.74rem',
-                  fontWeight: 800,
-                  padding: '3px 10px',
-                  borderRadius: 'var(--radius-full)',
-                  background: statusBg,
-                  color: statusColor,
-                  border: `1px solid ${statusBorder}`,
-                  letterSpacing: '0.04em',
-                }}
-              >
+              <span className={`badge ${statusBadgeClass}`} style={{ fontSize: '0.78rem', fontWeight: 800 }}>
                 {status}
               </span>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              How much you can safely spend before your next EMI
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Predictive cash flow defense before your upcoming EMI commitments
             </div>
           </div>
         </div>
@@ -106,17 +99,17 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
         {/* Safe to Spend Highlight Box */}
         <div
           style={{
-            background: 'rgba(15, 21, 35, 0.85)',
-            border: `1px solid ${isHighRisk ? 'rgba(244, 63, 94, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+            background: isHighRisk ? 'var(--rose-light)' : 'var(--emerald-light)',
+            border: `1px solid ${isHighRisk ? 'var(--rose-border)' : 'var(--emerald-border)'}`,
             borderRadius: 'var(--radius-md)',
-            padding: '8px 16px',
+            padding: '10px 18px',
             textAlign: 'right',
           }}
         >
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '0.72rem', color: isHighRisk ? 'var(--rose-text)' : 'var(--emerald-text)', textTransform: 'uppercase', fontWeight: 700 }}>
             Safe-To-Spend Right Now
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: isHighRisk ? '#FB7185' : '#34D399' }}>
+          <div style={{ fontSize: '1.45rem', fontWeight: 800, color: isHighRisk ? 'var(--rose)' : 'var(--emerald)' }}>
             ₹{safeToSpend.toLocaleString('en-IN')}
           </div>
         </div>
@@ -128,17 +121,17 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
           background: statusBg,
           border: `1px solid ${statusBorder}`,
           borderRadius: 'var(--radius-md)',
-          padding: '12px 16px',
-          marginBottom: '16px',
+          padding: '14px 18px',
+          marginBottom: '18px',
         }}
       >
-        <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#FFFFFF', lineHeight: 1.5 }}>
+        <div style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-title)', lineHeight: 1.5 }}>
           {summary}
         </div>
         {advice && (
-          <div style={{ fontSize: '0.82rem', color: statusColor, marginTop: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color={statusColor} />
-            <span>AI Advice: {advice}</span>
+          <div style={{ fontSize: '0.86rem', color: statusColor, marginTop: '8px', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <Sparkles size={16} color={statusColor} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span><strong>Copilot Recommendation:</strong> {advice}</span>
           </div>
         )}
       </div>
@@ -147,67 +140,67 @@ export const AIPredictionCard = ({ aiPrediction, onOpenPayments }) => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '10px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+          gap: '12px',
         }}
       >
         {/* 1. Current Balance */}
-        <div style={{ background: 'rgba(15, 21, 35, 0.6)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>Current Balance</div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', marginTop: '2px' }}>
+        <div style={{ background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Current Balance</div>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '4px' }}>
             ₹{currentBalance.toLocaleString('en-IN')}
           </div>
         </div>
 
         {/* 2. Upcoming EMI */}
-        <div style={{ background: 'rgba(15, 21, 35, 0.6)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Lock size={12} color="#F59E0B" />
+        <div style={{ background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--amber-text)', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Lock size={13} color="var(--amber)" />
             <span>Upcoming EMI</span>
           </div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#FCD34D', marginTop: '2px' }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--amber)', marginTop: '4px' }}>
             ₹{upcomingEMIAmount.toLocaleString('en-IN')}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             Due in {daysUntilEMI} days
           </div>
         </div>
 
         {/* 3. Expected Normal Spending */}
-        <div style={{ background: 'rgba(15, 21, 35, 0.6)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Flame size={12} color="#FB7185" />
+        <div style={{ background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Flame size={13} color="var(--primary)" />
             <span>Expected Spending</span>
           </div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#FB7185', marginTop: '2px' }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '4px' }}>
             ₹{expectedNormalExpenses.toLocaleString('en-IN')}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             Before EMI date
           </div>
         </div>
 
         {/* 4. Safety Reserve */}
-        <div style={{ background: 'rgba(15, 21, 35, 0.6)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase' }}>Safety Reserve</div>
-          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '2px' }}>
+        <div style={{ background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Safety Buffer</div>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '4px' }}>
             ₹{safetyReserve.toLocaleString('en-IN')}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
             Protected cushion
           </div>
         </div>
 
         {/* 5. Safe to Spend */}
-        <div style={{ background: 'rgba(15, 21, 35, 0.6)', border: `1px solid ${isHighRisk ? 'rgba(244, 63, 94, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`, borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.7rem', color: isHighRisk ? '#FB7185' : '#34D399', textTransform: 'uppercase', fontWeight: 700 }}>
+        <div style={{ background: isHighRisk ? 'var(--rose-light)' : 'var(--emerald-light)', border: `1px solid ${isHighRisk ? 'var(--rose-border)' : 'var(--emerald-border)'}`, borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+          <div style={{ fontSize: '0.72rem', color: isHighRisk ? 'var(--rose-text)' : 'var(--emerald-text)', textTransform: 'uppercase', fontWeight: 700 }}>
             Safe to Spend
           </div>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: isHighRisk ? '#FB7185' : '#34D399', marginTop: '2px' }}>
+          <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isHighRisk ? 'var(--rose)' : 'var(--emerald)', marginTop: '4px' }}>
             ₹{safeToSpend.toLocaleString('en-IN')}
           </div>
-          <div style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>
-            Available budget
+          <div style={{ fontSize: '0.72rem', color: isHighRisk ? 'var(--rose-text)' : 'var(--emerald-text)', marginTop: '2px' }}>
+            Free spending margin
           </div>
         </div>
       </div>

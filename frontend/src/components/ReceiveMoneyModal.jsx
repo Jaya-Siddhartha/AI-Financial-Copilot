@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowDownLeft, User, DollarSign, Zap, AlertCircle, ArrowRight } from 'lucide-react';
+import { ArrowDownLeft, User, DollarSign, Zap, AlertCircle, ArrowRight, X } from 'lucide-react';
 import { receiveMoneyApi } from '../services/api';
 
 export const ReceiveMoneyModal = ({
@@ -71,34 +71,45 @@ export const ReceiveMoneyModal = ({
   return (
     <div className="modal-overlay" style={{ zIndex: 1050 }}>
       <div className="modal-content" style={{ maxWidth: '480px', padding: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-            }}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--emerald-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--emerald-border)',
+              }}
+            >
+              <ArrowDownLeft size={22} color="var(--emerald)" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
+                Receive Money / Add Credit
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                Simulate cash inflow to increase your account balance
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{ padding: '6px', borderRadius: '50%', color: 'var(--text-muted)' }}
           >
-            <ArrowDownLeft size={22} color="#10B981" />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
-              Receive Money / Add Credit
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Simulate cash inflow to increase your account balance
-            </p>
-          </div>
+            <X size={18} />
+          </button>
         </div>
 
         {/* Quick Presets */}
         <div style={{ marginBottom: '18px' }}>
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 700 }}>
             Quick Demo Presets:
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -132,12 +143,12 @@ export const ReceiveMoneyModal = ({
         {error && (
           <div
             style={{
-              background: 'rgba(244, 63, 94, 0.12)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              borderRadius: 'var(--radius-sm)',
+              background: 'var(--rose-light)',
+              border: '1px solid var(--rose-border)',
+              borderRadius: 'var(--radius-md)',
               padding: '10px 14px',
-              color: '#FB7185',
-              fontSize: '0.82rem',
+              color: 'var(--rose-text)',
+              fontSize: '0.84rem',
               marginBottom: '16px',
             }}
           >
@@ -147,7 +158,7 @@ export const ReceiveMoneyModal = ({
 
         <form onSubmit={handleSubmit}>
           {/* Sender */}
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: '14px' }}>
             <label className="form-label">
               <span>Sender / Source</span>
             </label>
@@ -159,11 +170,11 @@ export const ReceiveMoneyModal = ({
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
                 required
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '38px' }}
               />
               <User
                 size={16}
-                color="var(--text-faint)"
+                color="var(--text-muted)"
                 style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
               />
             </div>
@@ -184,13 +195,21 @@ export const ReceiveMoneyModal = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  style={{ paddingLeft: '40px', fontSize: '1.05rem', fontWeight: 700, color: '#34D399' }}
+                  style={{ paddingLeft: '36px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--emerald)' }}
                 />
-                <DollarSign
-                  size={17}
-                  color="#10B981"
-                  style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
-                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: 'var(--emerald)',
+                  }}
+                >
+                  ₹
+                </span>
               </div>
             </div>
 
@@ -212,7 +231,7 @@ export const ReceiveMoneyModal = ({
           </div>
 
           {/* Note */}
-          <div className="form-group" style={{ marginBottom: '20px' }}>
+          <div className="form-group" style={{ marginBottom: '22px' }}>
             <label className="form-label">
               <span>Note (Optional)</span>
             </label>
@@ -239,7 +258,7 @@ export const ReceiveMoneyModal = ({
               type="submit"
               disabled={isSubmitting}
               className="btn btn-emerald"
-              style={{ flex: 2, padding: '12px', fontSize: '0.95rem' }}
+              style={{ flex: 2, padding: '12px', fontSize: '0.94rem', fontWeight: 700 }}
             >
               {isSubmitting ? (
                 'Processing Inflow...'

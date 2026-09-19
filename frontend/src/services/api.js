@@ -79,4 +79,9 @@ export const deleteEMIApi = async (emiId) => {
   return response.data;
 };
 
+export const updateTransactionCategoryApi = async (txId, category) => {
+  const response = await api.patch(`/transactions/${txId}/category`, { category });
+  return response.data;
+};
+
 export default api;

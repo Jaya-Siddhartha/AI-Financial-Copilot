@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Building, DollarSign, Clock, Layers, ArrowRight, AlertCircle } from 'lucide-react';
+import { Calendar, Building, DollarSign, Clock, Layers, ArrowRight, AlertCircle, X } from 'lucide-react';
 import { createEMIApi } from '../services/api';
 
 export const AddEMIModal = ({
@@ -69,40 +69,51 @@ export const AddEMIModal = ({
   return (
     <div className="modal-overlay" style={{ zIndex: 1050 }}>
       <div className="modal-content" style={{ maxWidth: '480px', padding: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'rgba(245, 158, 11, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-            }}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--amber-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--amber-border)',
+              }}
+            >
+              <Clock size={22} color="var(--amber)" />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-title)' }}>
+                Add EMI Obligation
+              </h2>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                Track loan commitments for AI risk calculations
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{ padding: '6px', borderRadius: '50%', color: 'var(--text-muted)' }}
           >
-            <Clock size={22} color="#F59E0B" />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
-              Add EMI Obligation
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
-              Add upcoming loan or recurring payment for AI prediction
-            </p>
-          </div>
+            <X size={18} />
+          </button>
         </div>
 
         {error && (
           <div
             style={{
-              background: 'rgba(244, 63, 94, 0.12)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              borderRadius: 'var(--radius-sm)',
+              background: 'var(--rose-light)',
+              border: '1px solid var(--rose-border)',
+              borderRadius: 'var(--radius-md)',
               padding: '10px 14px',
-              color: '#FB7185',
-              fontSize: '0.82rem',
+              color: 'var(--rose-text)',
+              fontSize: '0.84rem',
               marginBottom: '16px',
             }}
           >
@@ -112,7 +123,7 @@ export const AddEMIModal = ({
 
         <form onSubmit={handleSubmit}>
           {/* EMI Name */}
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: '14px' }}>
             <label className="form-label">
               <span>EMI Name / Loan Title</span>
             </label>
@@ -127,22 +138,22 @@ export const AddEMIModal = ({
           </div>
 
           {/* Lender Name */}
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: '14px' }}>
             <label className="form-label">
-              <span>Lender / Bank / Company</span>
+              <span>Lender / Bank / Institution</span>
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. ABC Finance, HDFC Bank, Bajaj Finserv"
+                placeholder="e.g. HDFC Bank, ABC Finance, Bajaj Finserv"
                 value={lender}
                 onChange={(e) => setLender(e.target.value)}
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '38px' }}
               />
               <Building
                 size={16}
-                color="var(--text-faint)"
+                color="var(--text-muted)"
                 style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
               />
             </div>
@@ -163,13 +174,21 @@ export const AddEMIModal = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  style={{ paddingLeft: '40px', fontSize: '1rem', fontWeight: 700 }}
+                  style={{ paddingLeft: '36px', fontSize: '1.05rem', fontWeight: 700 }}
                 />
-                <DollarSign
-                  size={16}
-                  color="#F59E0B"
-                  style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
-                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: 'var(--amber)',
+                  }}
+                >
+                  ₹
+                </span>
               </div>
             </div>
 
@@ -188,11 +207,11 @@ export const AddEMIModal = ({
                   value={dueDay}
                   onChange={(e) => setDueDay(e.target.value)}
                   required
-                  style={{ paddingLeft: '40px' }}
+                  style={{ paddingLeft: '38px' }}
                 />
                 <Calendar
                   size={16}
-                  color="var(--text-faint)"
+                  color="var(--text-muted)"
                   style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}
                 />
               </div>
@@ -200,7 +219,7 @@ export const AddEMIModal = ({
           </div>
 
           {/* Total Loan Amount & Remaining Installments */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', marginBottom: '22px' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">
                 <span>Total Loan ({currency}) (Optional)</span>
@@ -243,7 +262,7 @@ export const AddEMIModal = ({
               type="submit"
               disabled={isSubmitting}
               className="btn btn-primary"
-              style={{ flex: 2, padding: '12px' }}
+              style={{ flex: 2, padding: '12px', fontWeight: 700 }}
             >
               {isSubmitting ? 'Saving EMI...' : 'Add EMI Obligation'}
             </button>

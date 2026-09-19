@@ -81,63 +81,9 @@ const generateId = () => {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 };
 
-// Automatic Categorization Helper
-export const autoCategorize = (recipientName = '') => {
-  const name = recipientName.toLowerCase();
+import { CATEGORIES, autoCategorizeRecipient } from './categories.js';
 
-  if (name.includes('grocery') || name.includes('supermart') || name.includes('fresh') || name.includes('market') || name.includes('blinkit') || name.includes('zepto') || name.includes('instamart')) {
-    return 'Groceries & Food';
-  }
-  if (
-    name.includes('restaurant') ||
-    name.includes('cafe') ||
-    name.includes('bistro') ||
-    name.includes('food') ||
-    name.includes('zomato') ||
-    name.includes('swiggy') ||
-    name.includes('coffee') ||
-    name.includes('starbucks') ||
-    name.includes('dining') ||
-    name.includes('dhaba')
-  ) {
-    return 'Food & Dining';
-  }
-  if (
-    name.includes('power') ||
-    name.includes('electric') ||
-    name.includes('broadband') ||
-    name.includes('water') ||
-    name.includes('wifi') ||
-    name.includes('utility') ||
-    name.includes('bill') ||
-    name.includes('bescom') ||
-    name.includes('tneb') ||
-    name.includes('tatapower')
-  ) {
-    return 'Utilities & Bills';
-  }
-  if (name.includes('recharge') || name.includes('jio') || name.includes('airtel') || name.includes('vi ') || name.includes('vodafone') || name.includes('bsnl')) {
-    return 'Recharge';
-  }
-  if (name.includes('uber') || name.includes('ola') || name.includes('metro') || name.includes('cab') || name.includes('fuel') || name.includes('petrol') || name.includes('shell') || name.includes('auto') || name.includes('rapido')) {
-    return 'Transport';
-  }
-  if (name.includes('amazon') || name.includes('flipkart') || name.includes('croma') || name.includes('myntra') || name.includes('store') || name.includes('electronics') || name.includes('shopping') || name.includes('mall')) {
-    return 'Shopping';
-  }
-  if (name.includes('rent') || name.includes('landlord') || name.includes('housing') || name.includes('society') || name.includes('flat')) {
-    return 'Housing';
-  }
-  if (name.includes('loan') || name.includes('emi') || name.includes('finance') || name.includes('bank installment') || name.includes('bajaj')) {
-    return 'EMI';
-  }
-  if (name.includes('salary') || name.includes('payroll') || name.includes('bonus') || name.includes('freelance') || name.includes('consulting')) {
-    return 'Salary';
-  }
-
-  // Default for person-to-person payments
-  return 'Daily Expenses';
-};
+export const autoCategorize = autoCategorizeRecipient;
 
 export const memoryStore = {
   // --- USERS ---
@@ -353,6 +299,18 @@ export const memoryStore = {
     data.transactions.unshift(newTx);
     saveData(data);
     return newTx;
+  },
+
+  async updateTransactionCategory(txId, newCategory) {
+    const data = loadData();
+    const index = data.transactions.findIndex(
+      (tx) => String(tx._id || tx.id) === String(txId)
+    );
+    if (index === -1) return null;
+    data.transactions[index].category = newCategory;
+    data.transactions[index].updatedAt = new Date().toISOString();
+    saveData(data);
+    return data.transactions[index];
   },
 
   async deleteTransactions(query = {}) {

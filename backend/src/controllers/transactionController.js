@@ -190,3 +190,30 @@ export const receiveMoney = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Update Category of an existing transaction (Manual Correction)
+export const updateCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+
+    if (!category || !category.trim()) {
+      return res.status(400).json({ success: false, message: 'Category is required.' });
+    }
+
+    const updated = await dataService.updateTransactionCategory(id, category.trim());
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Transaction not found.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction category updated successfully.',
+      data: updated,
+    });
+  } catch (error) {
+    console.error('[transactionController] updateCategory error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

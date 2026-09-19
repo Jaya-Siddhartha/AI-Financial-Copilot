@@ -1,5 +1,6 @@
 import { dataService } from './dataService.js';
 import { DEMO_USERS } from '../config/store.js';
+import { CATEGORIES } from '../config/categories.js';
 
 export const seedDualDemoAccounts = async () => {
   await dataService.resetAll();
@@ -48,7 +49,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Salary Credited',
       merchant: 'TechCorp Global Payroll',
-      category: 'Salary',
+      category: CATEGORIES.SALARY,
       type: 'credit',
       amount: 50000,
       date: makeDate(8, 9, 0),
@@ -59,7 +60,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Apartment Monthly Rent',
       merchant: 'Amit Kumar (Landlord)',
-      category: 'Housing',
+      category: CATEGORIES.HOUSING,
       type: 'debit',
       amount: 10000,
       date: makeDate(7, 10, 30),
@@ -70,7 +71,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Fresh Market Groceries',
       merchant: 'Fresh Harvest Supermart',
-      category: 'Groceries & Food',
+      category: CATEGORIES.GROCERIES,
       type: 'debit',
       amount: 2000,
       date: makeDate(5, 18, 15),
@@ -81,7 +82,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Metro & Cab Transport',
       merchant: 'Uber Rides India',
-      category: 'Transport',
+      category: CATEGORIES.TRANSPORT,
       type: 'debit',
       amount: 1000,
       date: makeDate(3, 8, 45),
@@ -92,7 +93,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Paid to Rahul Sharma',
       merchant: 'Rahul Sharma',
-      category: 'Daily Expenses',
+      category: CATEGORIES.OTHER,
       type: 'debit',
       amount: 3000,
       date: makeDate(2, 20, 10),
@@ -103,7 +104,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Weekend Dining',
       merchant: 'The Olive Bistro & Cafe',
-      category: 'Food & Dining',
+      category: CATEGORIES.FOOD,
       type: 'debit',
       amount: 800,
       date: makeDate(1, 19, 30),
@@ -114,10 +115,10 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Airtel Broadband Bill',
       merchant: 'Airtel Fiber Broadband',
-      category: 'Utilities & Bills',
+      category: CATEGORIES.UTILITIES,
       type: 'debit',
       amount: 1200,
-      date: makeDate(0, 11, 0),
+      date: makeDate(1, 8, 0),
       description: 'Paid via UPI',
       status: 'completed',
       paymentMethod: 'UPI',
@@ -180,7 +181,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Freelance Project Payout',
       merchant: 'Acme Digital Labs',
-      category: 'Salary',
+      category: CATEGORIES.SALARY,
       type: 'credit',
       amount: 20000,
       date: makeDate(6, 12, 0),
@@ -191,7 +192,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Received from Siddhartha',
       merchant: 'Siddhartha Mukherjee',
-      category: 'Daily Expenses',
+      category: CATEGORIES.OTHER,
       type: 'credit',
       amount: 3000,
       date: makeDate(2, 20, 10),
@@ -202,7 +203,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Jio 5G Mobile Recharge',
       merchant: 'Reliance Jio Prepaid',
-      category: 'Recharge',
+      category: CATEGORIES.RECHARGE,
       type: 'debit',
       amount: 499,
       date: makeDate(3, 14, 20),
@@ -213,7 +214,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Swiggy Food Delivery',
       merchant: 'Swiggy Online Food',
-      category: 'Food & Dining',
+      category: CATEGORIES.FOOD,
       type: 'debit',
       amount: 650,
       date: makeDate(2, 21, 0),
@@ -224,7 +225,7 @@ export const seedDualDemoAccounts = async () => {
     {
       title: 'Delhi Metro Card Recharge',
       merchant: 'DMRC Transit Card',
-      category: 'Transport',
+      category: CATEGORIES.TRANSPORT,
       type: 'debit',
       amount: 500,
       date: makeDate(1, 9, 30),
