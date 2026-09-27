@@ -1,6 +1,5 @@
 import { dataService } from '../services/dataService.js';
 import { seedDualDemoAccounts } from '../services/seedService.js';
-import { DEMO_USERS } from '../config/store.js';
 import { analyzeFinancialState } from '../services/financialEngine.js';
 
 // Get list of all switchable simulated accounts
@@ -167,7 +166,7 @@ export const getDashboardData = async (req, res) => {
           verifiedBalance: analysis.verifiedBalance,
           lastBalanceCheckDate: analysis.lastBalanceCheckDate,
           upcomingEMIAmount: analysis.totalUpcomingEMI,
-          daysUntilEMI: analysis.nextEMI ? (analysis.nextEMI.daysRemaining || 10) : 10,
+          daysUntilEMI: analysis.nextEMI ? (analysis.nextEMI.daysRemaining ?? 10) : 10,
           expectedNormalExpenses: analysis.expectedNormalExpenses,
           safetyReserve: analysis.safetyReserve,
           safeToSpend: analysis.safeToSpend,
@@ -204,10 +203,6 @@ export const checkBankBalance = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User account not found.' });
     }
 
-    if (!upiPin || String(upiPin).trim().length === 0) {
-      return res.status(400).json({ success: false, message: 'Please enter your 4-digit UPI PIN.' });
-    }
-
     const verificationResult = await dataService.verifyBankBalance(targetUserId, upiPin);
 
     return res.status(200).json({
@@ -216,8 +211,8 @@ export const checkBankBalance = async (req, res) => {
       data: verificationResult,
     });
   } catch (error) {
-    console.error('[accountController] checkBankBalance error:', error);
-    return res.status(400).json({ success: false, message: error.message || 'Balance verification failed.' });
+    if (!error.status) console.error('[accountController] checkBankBalance error:', error);
+    return res.status(error.status || 500).json({ success: false, message: error.message || 'Balance verification failed.' });
   }
 };
 
@@ -240,8 +235,8 @@ export const updateUpiPin = async (req, res) => {
 
     return res.status(200).json(result);
   } catch (error) {
-    console.error('[accountController] updateUpiPin error:', error);
-    return res.status(400).json({ success: false, message: error.message });
+    if (!error.status) console.error('[accountController] updateUpiPin error:', error);
+    return res.status(error.status || 500).json({ success: false, message: error.message });
   }
 };
 

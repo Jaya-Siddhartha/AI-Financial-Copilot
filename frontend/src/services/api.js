@@ -2,86 +2,34 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
-export const fetchAllAccounts = async () => {
-  const response = await api.get('/account/all');
-  return response.data;
-};
+const data = (promise) => promise.then((res) => res.data);
 
-export const fetchDashboardData = async (userId) => {
-  const response = await api.get('/account/dashboard', {
-    params: userId ? { userId } : {},
-  });
-  return response.data;
-};
+export const fetchAllAccounts = () => data(api.get('/account/all'));
 
-export const fetchCurrentAccount = async (userId) => {
-  const response = await api.get('/account/current', {
-    params: userId ? { userId } : {},
-  });
-  return response.data;
-};
+export const fetchDashboardData = (userId) => data(api.get('/account/dashboard', { params: { userId } }));
 
-export const resetUserAccount = async () => {
-  const response = await api.post('/account/reset');
-  return response.data;
-};
+export const resetDemo = () => data(api.post('/account/reset'));
 
-export const checkBankBalanceApi = async ({ userId, upiPin }) => {
-  const response = await api.post('/account/check-balance', { userId, upiPin });
-  return response.data;
-};
+export const checkBankBalanceApi = ({ userId, upiPin }) => data(api.post('/account/check-balance', { userId, upiPin }));
 
-export const updateUpiPinApi = async ({ userId, oldPin, newPin }) => {
-  const response = await api.post('/account/update-pin', { userId, oldPin, newPin });
-  return response.data;
-};
+export const updateUpiPinApi = ({ userId, oldPin, newPin }) =>
+  data(api.post('/account/update-pin', { userId, oldPin, newPin }));
 
-export const fetchTransactions = async (params = {}) => {
-  const response = await api.get('/transactions', { params });
-  return response.data;
-};
+export const fetchTransactions = (params) => data(api.get('/transactions', { params }));
 
-export const makePaymentApi = async (payload) => {
-  const response = await api.post('/transactions/payment', payload);
-  return response.data;
-};
+export const makePaymentApi = (payload) => data(api.post('/transactions/payment', payload));
 
-export const receiveMoneyApi = async (payload) => {
-  const response = await api.post('/transactions/receive', payload);
-  return response.data;
-};
+export const receiveMoneyApi = (payload) => data(api.post('/transactions/receive', payload));
 
-export const fetchEMIsApi = async (userId) => {
-  const response = await api.get('/emi', {
-    params: userId ? { userId } : {},
-  });
-  return response.data;
-};
+export const createEMIApi = (payload) => data(api.post('/emi', payload));
 
-export const createEMIApi = async (payload) => {
-  const response = await api.post('/emi', payload);
-  return response.data;
-};
+export const payEMIApi = (emiId, userId) => data(api.post(`/emi/${emiId}/pay`, { userId }));
 
-export const payEMIApi = async (emiId, userId) => {
-  const response = await api.post(`/emi/${emiId}/pay`, { userId });
-  return response.data;
-};
+export const deleteEMIApi = (emiId, userId) => data(api.delete(`/emi/${emiId}`, { params: { userId } }));
 
-export const deleteEMIApi = async (emiId) => {
-  const response = await api.delete(`/emi/${emiId}`);
-  return response.data;
-};
-
-export const updateTransactionCategoryApi = async (txId, category) => {
-  const response = await api.patch(`/transactions/${txId}/category`, { category });
-  return response.data;
-};
-
-export default api;
+export const updateTransactionCategoryApi = (txId, category) =>
+  data(api.patch(`/transactions/${txId}/category`, { category }));

@@ -30,7 +30,7 @@ FinCopilot utilizes **MongoDB Atlas** as its primary production persistence engi
 - **Point-in-Time Recovery (PITR)**: Available on M10+ dedicated Atlas clusters for second-level granular restoration up to 7 days in the past.
 
 ### 2.2 Restoration Workflow via Atlas Console
-1. Navigate to **Atlas Dashboard** $\rightarrow$ **Clusters** $\rightarrow$ **Backup**.
+1. Navigate to **Atlas Dashboard** → **Clusters** → **Backup**.
 2. Select target snapshot date/time or specific Point-in-Time checkpoint.
 3. Choose **Restore to this cluster** (or provision a parallel staging cluster).
 4. Monitor restore progress until cluster state transitions to `Active`.

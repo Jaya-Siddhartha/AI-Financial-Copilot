@@ -3,7 +3,18 @@ import { User } from '../models/User.js';
 import { Account } from '../models/Account.js';
 import { Transaction } from '../models/Transaction.js';
 import { EMI } from '../models/EMI.js';
-import { memoryStore, DEMO_USERS } from '../config/store.js';
+import { memoryStore } from '../config/store.js';
+import { autoCategorizeRecipient, CATEGORIES } from '../config/categories.js';
+
+// UPI-style PIN protection: after MAX_PIN_ATTEMPTS wrong entries the PIN is locked for a while.
+export const MAX_PIN_ATTEMPTS = 3;
+export const PIN_LOCK_MINUTES = 5;
+
+export const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+const idOf = (doc) => (doc ? String(doc.id || doc._id) : null);
+const escapeRegex = (text) => String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const digitsOf = (value) => String(value || '').replace(/[^0-9]/g, '').slice(-10);
 
 export const dataService = {
   // USERS
@@ -35,6 +46,13 @@ export const dataService = {
       if (found) return found;
     }
     return await memoryStore.findUser({});
+  },
+
+  async updateUser(userId, updates) {
+    if (isMongooseConnected) {
+      return await User.findByIdAndUpdate(userId, updates, { new: true });
+    }
+    return await memoryStore.updateUser(userId, updates);
   },
 
   async upsertUser(userData) {
@@ -101,10 +119,11 @@ export const dataService = {
       if (query.category && query.category !== 'all') q.category = query.category;
       if (query.type && query.type !== 'all') q.type = query.type;
       if (query.search) {
+        const pattern = escapeRegex(query.search);
         q.$or = [
-          { title: { $regex: query.search, $options: 'i' } },
-          { merchant: { $regex: query.search, $options: 'i' } },
-          { category: { $regex: query.search, $options: 'i' } },
+          { title: { $regex: pattern, $options: 'i' } },
+          { merchant: { $regex: pattern, $options: 'i' } },
+          { category: { $regex: pattern, $options: 'i' } },
         ];
       }
       return await Transaction.find(q).sort({ date: -1 }).limit(limit).lean();
@@ -141,19 +160,183 @@ export const dataService = {
     return await memoryStore.updateTransactionCategory(txId, category);
   },
 
-  // ATOMIC TRANSFER
-  async transferBetweenAccounts(transferPayload) {
-    return await memoryStore.transferBetweenAccounts(transferPayload);
+  // Atomic balance change. With requireFunds, the debit only happens if the balance covers it
+  // (returns null otherwise), so two concurrent payments cannot overdraw the account.
+  async adjustAccountBalance(accountId, deltas) {
+    if (isMongooseConnected) {
+      const { balanceDelta = 0, creditedDelta = 0, debitedDelta = 0, requireFunds = 0 } = deltas;
+      const filter = { _id: accountId };
+      if (requireFunds) filter.currentBalance = { $gte: requireFunds };
+      return await Account.findOneAndUpdate(
+        filter,
+        { $inc: { currentBalance: balanceDelta, totalCredited: creditedDelta, totalDebited: debitedDelta } },
+        { new: true }
+      );
+    }
+    return await memoryStore.adjustAccountBalance(accountId, deltas);
   },
 
-  // BALANCE VERIFICATION
+  // Validates a UPI PIN and enforces the wrong-attempt lockout. Throws an error with an HTTP status.
+  async assertUpiPin(user, enteredPin, wrongPinMessage = 'Incorrect UPI PIN.') {
+    const userId = idOf(user);
+    const now = Date.now();
+    const lockedUntil = user.pinLockedUntil ? new Date(user.pinLockedUntil).getTime() : 0;
+
+    if (lockedUntil > now) {
+      const minutes = Math.ceil((lockedUntil - now) / 60000);
+      throw httpError(423, `UPI PIN is locked after ${MAX_PIN_ATTEMPTS} wrong attempts. Try again in ${minutes} min.`);
+    }
+
+    const pin = String(enteredPin ?? '').trim();
+    if (!/^\d{4}$/.test(pin)) {
+      throw httpError(400, 'Enter your 4-digit UPI PIN.');
+    }
+
+    if (pin !== String(user.upiPin || '1234')) {
+      const attempts = (Number(user.pinFailedAttempts) || 0) + 1;
+      if (attempts >= MAX_PIN_ATTEMPTS) {
+        await this.updateUser(userId, {
+          pinFailedAttempts: 0,
+          pinLockedUntil: new Date(now + PIN_LOCK_MINUTES * 60000).toISOString(),
+        });
+        throw httpError(423, `Too many wrong attempts. UPI PIN locked for ${PIN_LOCK_MINUTES} minutes.`);
+      }
+      await this.updateUser(userId, { pinFailedAttempts: attempts });
+      const left = MAX_PIN_ATTEMPTS - attempts;
+      throw httpError(400, `${wrongPinMessage} ${left} attempt${left === 1 ? '' : 's'} left.`);
+    }
+
+    if (user.pinFailedAttempts || user.pinLockedUntil) {
+      await this.updateUser(userId, { pinFailedAttempts: 0, pinLockedUntil: null });
+    }
+  },
+
+  // UPI transfer. If the recipient is another account in this system, it is credited too.
+  async transferBetweenAccounts({ senderId, recipientName, recipientPhone = '', recipientUpi = '', amount, upiPin, note = '', paymentMethod = 'UPI' }) {
+    const amt = Number(amount);
+    const senderUser = await this.getUserById(senderId);
+    const senderAccount = senderUser ? await this.getAccountByUserId(idOf(senderUser)) : null;
+    if (!senderUser || !senderAccount) {
+      throw httpError(404, 'Sender account not found.');
+    }
+
+    await this.assertUpiPin(senderUser, upiPin, 'Incorrect UPI PIN. Payment not processed.');
+
+    const cleanPhone = digitsOf(recipientPhone);
+    const cleanUpi = String(recipientUpi || '').toLowerCase().trim();
+    const cleanName = String(recipientName || '').toLowerCase().trim();
+
+    const users = await this.getAllUsers();
+    const recipientUser = users.find((u) => {
+      if (idOf(u) === idOf(senderUser)) return false;
+      const phone = digitsOf(u.phoneOnly || u.mobile);
+      if (cleanPhone && phone && cleanPhone === phone) return true;
+      if (cleanUpi && u.upiId && cleanUpi === u.upiId.toLowerCase()) return true;
+      const names = [u.name, u.fullName].filter(Boolean).map((n) => n.toLowerCase());
+      return Boolean(cleanName) && names.includes(cleanName);
+    });
+
+    const updatedSender = await this.adjustAccountBalance(idOf(senderAccount), {
+      balanceDelta: -amt,
+      debitedDelta: amt,
+      requireFunds: amt,
+    });
+    if (!updatedSender) {
+      const available = Number(senderAccount.currentBalance) || 0;
+      throw httpError(400, `Insufficient balance. Available balance is ₹${available.toLocaleString('en-IN')}.`);
+    }
+
+    const displayRecipient = recipientUser ? recipientUser.name : recipientName;
+    const nowIso = new Date().toISOString();
+
+    const senderTx = await this.addTransaction({
+      accountId: idOf(senderAccount),
+      userId: idOf(senderUser),
+      title: `Paid to ${displayRecipient}`,
+      merchant: displayRecipient,
+      category: autoCategorizeRecipient(displayRecipient),
+      type: 'debit',
+      amount: amt,
+      description: note || `Paid via ${paymentMethod}`,
+      status: 'completed',
+      paymentMethod,
+      date: nowIso,
+    });
+
+    let recipientTx = null;
+    let updatedRecipient = null;
+    if (recipientUser) {
+      const recipientAccount = await this.getAccountByUserId(idOf(recipientUser));
+      if (recipientAccount) {
+        updatedRecipient = await this.adjustAccountBalance(idOf(recipientAccount), {
+          balanceDelta: amt,
+          creditedDelta: amt,
+        });
+        recipientTx = await this.addTransaction({
+          accountId: idOf(recipientAccount),
+          userId: idOf(recipientUser),
+          title: `Received from ${senderUser.name}`,
+          merchant: senderUser.name,
+          category: CATEGORIES.OTHER,
+          type: 'credit',
+          amount: amt,
+          description: note || `Received via ${paymentMethod}`,
+          status: 'completed',
+          paymentMethod,
+          date: nowIso,
+        });
+      }
+    }
+
+    return {
+      senderTx,
+      senderBalance: updatedSender.currentBalance,
+      recipientUser: recipientUser ? recipientUser.name : null,
+      recipientBalance: updatedRecipient ? updatedRecipient.currentBalance : null,
+      recipientTx,
+    };
+  },
+
+  // BALANCE VERIFICATION: a correct PIN resets the "verified" baseline to the current balance.
   async verifyBankBalance(userId, enteredPin) {
-    return await memoryStore.verifyBankBalance(userId, enteredPin);
+    const user = await this.getUserById(userId);
+    if (!user) throw httpError(404, 'User account not found.');
+
+    await this.assertUpiPin(user, enteredPin, 'Incorrect UPI PIN.');
+
+    const account = await this.getAccountByUserId(idOf(user));
+    if (!account) throw httpError(404, 'Bank account not found.');
+
+    const nowIso = new Date().toISOString();
+    await this.updateAccountBalances(idOf(account), {
+      verifiedBalance: account.currentBalance,
+      lastBalanceCheckDate: nowIso,
+    });
+
+    return {
+      success: true,
+      verifiedBalance: account.currentBalance,
+      currentBalance: account.currentBalance,
+      lastBalanceCheckDate: nowIso,
+      bankName: account.bankName || 'Simulated Bank (UPI)',
+      accountNumberMasked: account.accountNumberMasked || '•••• 4092',
+    };
   },
 
-  // UPDATE UPI PIN
+  // CHANGE UPI PIN
   async updateUpiPin(userId, oldPin, newPin) {
-    return await memoryStore.updateUpiPin(userId, oldPin, newPin);
+    const user = await this.getUserById(userId);
+    if (!user) throw httpError(404, 'User account not found.');
+
+    await this.assertUpiPin(user, oldPin, 'Current UPI PIN is incorrect.');
+
+    const next = String(newPin ?? '').trim();
+    if (!/^\d{4}$/.test(next)) {
+      throw httpError(400, 'New UPI PIN must be exactly 4 digits.');
+    }
+
+    await this.updateUser(idOf(user), { upiPin: next });
+    return { success: true, message: 'UPI PIN updated successfully.' };
   },
 
   // EMIS

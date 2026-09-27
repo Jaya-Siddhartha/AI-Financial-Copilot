@@ -38,6 +38,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '1234',
     },
+    pinFailedAttempts: {
+      type: Number,
+      default: 0,
+    },
+    pinLockedUntil: {
+      type: Date,
+      default: null,
+    },
     monthlyIncome: {
       type: Number,
       required: true,

@@ -2,10 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import accountRoutes from './routes/accountRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import emiRoutes from './routes/emiRoutes.js';
+import { dataService } from './services/dataService.js';
+import { seedDualDemoAccounts } from './services/seedService.js';
 
 dotenv.config();
 
@@ -13,12 +16,24 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
+app.disable('x-powered-by');
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.use(morgan('dev'));
 }
+
+// On serverless platforms startServer() never runs, so make sure the database connection
+// (a no-op without MONGODB_URI) is attempted before the first API request is handled.
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('[Server] Database connection error:', err.message);
+  }
+  next();
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -59,9 +74,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-import { dataService } from './services/dataService.js';
-import { seedDualDemoAccounts } from './services/seedService.js';
-
 // Connect to Database and start server
 export const startServer = async () => {
   try {
@@ -80,7 +92,9 @@ export const startServer = async () => {
   }
 };
 
-if (!process.env.VERCEL) {
+// Start listening only when run directly (`node src/server.js`); serverless handlers and
+// tests import the app without opening a port.
+if (!process.env.VERCEL && process.argv[1] === fileURLToPath(import.meta.url)) {
   startServer();
 }
 

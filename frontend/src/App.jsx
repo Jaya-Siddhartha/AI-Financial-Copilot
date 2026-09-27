@@ -1,301 +1,326 @@
-import React, { useState, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { Header } from './components/Header';
-import { OnboardingModal } from './components/OnboardingModal';
-import { PaymentModal } from './components/PaymentModal';
-import { CheckBalanceModal } from './components/CheckBalanceModal';
-import { ReceiveMoneyModal } from './components/ReceiveMoneyModal';
-import { AddEMIModal } from './components/AddEMIModal';
-import { ReceiptModal } from './components/ReceiptModal';
-import { Dashboard } from './pages/Dashboard';
-import { PaymentsPage } from './pages/PaymentsPage';
-import { EMIPage } from './pages/EMIPage';
-import { TransactionsPage } from './pages/TransactionsPage';
-import { AnalysisPage } from './pages/AnalysisPage';
-import { StartPage } from './pages/StartPage';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  fetchDashboardData,
-  fetchAllAccounts,
-  resetUserAccount,
-} from './services/api';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+  CalendarClock,
+  ChevronDown,
+  History,
+  House,
+  LoaderCircle,
+  PieChart,
+  RefreshCw,
+  Send,
+  User,
+} from 'lucide-react';
+import { Avatar } from './components/ui/Avatar';
+import { Alert } from './components/ui/Alert';
+import { HomePage } from './pages/HomePage';
+import { InsightsPage } from './pages/InsightsPage';
+import { EmisPage } from './pages/EmisPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { PayFlow } from './flows/PayFlow';
+import { CheckBalanceFlow } from './flows/CheckBalanceFlow';
+import { ChangePinFlow } from './flows/ChangePinFlow';
+import { ReceiveSheet } from './flows/ReceiveSheet';
+import { AddEmiSheet } from './flows/AddEmiSheet';
+import { PayEmiSheet } from './flows/PayEmiSheet';
+import { TransactionSheet } from './flows/TransactionSheet';
+import { ConfirmSheet } from './flows/ConfirmSheet';
+import { deleteEMIApi, fetchAllAccounts, fetchDashboardData, resetDemo } from './services/api';
+import { DEMO_CONTACTS } from './constants/contacts';
+import { apiError } from './lib/format';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeUserId, setActiveUserId] = useState('user_siddhartha');
-  const [allAccounts, setAllAccounts] = useState([]);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+const DEFAULT_USER = 'user_siddhartha';
+const USER_KEY = 'fincopilot.activeUser';
 
-  // Modal States
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [isCheckBalanceOpen, setIsCheckBalanceOpen] = useState(false);
-  const [preselectedContact, setPreselectedContact] = useState(null);
-  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
-  const [isAddEMIOpen, setIsAddEMIOpen] = useState(false);
-  const [receiptData, setReceiptData] = useState(null);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+const NAV = [
+  { id: 'home', label: 'Home', icon: House },
+  { id: 'insights', label: 'Insights', icon: PieChart },
+  { id: 'emis', label: 'EMIs', icon: CalendarClock },
+  { id: 'history', label: 'History', icon: History },
+  { id: 'profile', label: 'Profile', icon: User },
+];
 
-  const loadData = async (targetUserId = activeUserId) => {
+const readStoredUser = () => {
+  try {
+    return localStorage.getItem(USER_KEY) || DEFAULT_USER;
+  } catch {
+    return DEFAULT_USER;
+  }
+};
+
+export default function App() {
+  const [tab, setTab] = useState('home');
+  const [userId, setUserId] = useState(readStoredUser);
+  const [accounts, setAccounts] = useState([]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [sheet, setSheet] = useState(null);
+  const [toast, setToast] = useState('');
+  const [historyKey, setHistoryKey] = useState(0);
+
+  const load = useCallback(async (targetUserId) => {
+    setLoading(true);
+    setError('');
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // 1. Fetch all demo accounts list for switcher
-      const accountsRes = await fetchAllAccounts();
-      if (accountsRes && accountsRes.success && accountsRes.data) {
-        setAllAccounts(accountsRes.data);
-      }
-
-      // 2. Fetch dashboard payload for current user
-      const dashRes = await fetchDashboardData(targetUserId);
-      if (dashRes && dashRes.success && (dashRes.hasAccount || dashRes.data)) {
-        setDashboardData(dashRes.data);
-        setIsOnboardingOpen(false);
-      } else {
-        setError('No active account found. Click Reset Demo to initialize.');
-      }
+      const [accountsRes, dashRes] = await Promise.all([fetchAllAccounts(), fetchDashboardData(targetUserId)]);
+      setAccounts(accountsRes.data || []);
+      setData(dashRes.data);
+      // The stored account may no longer exist (e.g. after a reset); follow what the server returned.
+      if (dashRes.data?.user?.id && dashRes.data.user.id !== targetUserId) setUserId(dashRes.data.user.id);
     } catch (err) {
-      console.error('[App] Failed to load financial data:', err);
-      setError('Unable to communicate with the backend server. Please ensure the backend is running.');
+      setError(apiError(err, 'Could not load your account.'));
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData(activeUserId);
-  }, [activeUserId]);
+    load(userId);
+    try {
+      localStorage.setItem(USER_KEY, userId);
+    } catch {
+      // Storage can be unavailable (private mode); the app works without it.
+    }
+  }, [userId, load]);
 
-  const handleSwitchAccount = (newUserId) => {
-    setActiveUserId(newUserId);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(''), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const refresh = useCallback(() => {
+    setHistoryKey((k) => k + 1);
+    return load(userId);
+  }, [load, userId]);
+
+  const closeSheet = useCallback(() => setSheet(null), []);
+
+  // Other demo account first, then fixed demo contacts.
+  const contacts = useMemo(() => {
+    const others = accounts
+      .filter((a) => a.id !== userId)
+      .map((a) => ({ name: a.fullName || a.name, phone: a.phoneOnly, upiId: a.upiId }));
+    return [...others, ...DEMO_CONTACTS];
+  }, [accounts, userId]);
+
+  const go = (next) => {
+    setTab(next);
+    window.scrollTo({ top: 0 });
   };
 
-  const handleReset = async () => {
-    if (window.confirm('Reset demo accounts to initial state (Siddhartha: ₹50,000, Rahul: ₹30,000, default EMIs and transactions)?')) {
-      try {
-        setIsLoading(true);
-        await resetUserAccount();
-        setActiveUserId('user_siddhartha');
-        await loadData('user_siddhartha');
-      } catch (err) {
-        console.error('Failed to reset demo:', err);
-        alert('Failed to reset demo.');
-      } finally {
-        setIsLoading(false);
-      }
+  const actions = {
+    go,
+    notify: setToast,
+    pay: (payee = null, mode) => setSheet({ type: 'pay', payee, mode }),
+    checkBalance: () => setSheet({ type: 'balance' }),
+    receive: () => setSheet({ type: 'receive' }),
+    addEmi: () => setSheet({ type: 'addEmi' }),
+    payEmi: (emi) => setSheet({ type: 'payEmi', emi }),
+    openTx: (tx) => setSheet({ type: 'tx', tx }),
+    changePin: () => setSheet({ type: 'changePin' }),
+    switchAccount: (id) => {
+      if (id === userId) return;
+      setUserId(id);
+      setToast('Switched account');
+    },
+    removeEmi: (emi) =>
+      setSheet({
+        type: 'confirm',
+        title: 'Remove EMI?',
+        message: `${emi.name} will no longer be counted when working out what is safe to spend.`,
+        confirmLabel: 'Remove',
+        danger: true,
+        onConfirm: async () => {
+          await deleteEMIApi(emi._id || emi.id, userId);
+          setSheet(null);
+          setToast(`${emi.name} removed`);
+          refresh();
+        },
+      }),
+    reset: () =>
+      setSheet({
+        type: 'confirm',
+        title: 'Reset demo data?',
+        message: 'Both demo accounts go back to their starting balances, EMIs and transactions. The UPI PIN is reset to 1234.',
+        confirmLabel: 'Reset',
+        danger: true,
+        onConfirm: async () => {
+          await resetDemo();
+          setSheet(null);
+          setToast('Demo data reset');
+          if (userId === DEFAULT_USER) refresh();
+          else setUserId(DEFAULT_USER);
+          go('home');
+        },
+      }),
+  };
+
+  const renderSheet = () => {
+    if (!sheet || !data) return null;
+    const common = { user: data.user, account: data.account, onClose: closeSheet };
+    switch (sheet.type) {
+      case 'pay':
+        return (
+          <PayFlow
+            {...common}
+            contacts={contacts}
+            initialPayee={sheet.payee}
+            mode={sheet.mode}
+            metrics={data.metrics}
+            onPaid={refresh}
+            onViewHistory={() => {
+              closeSheet();
+              go('history');
+            }}
+          />
+        );
+      case 'balance':
+        return <CheckBalanceFlow {...common} onVerified={refresh} />;
+      case 'changePin':
+        return <ChangePinFlow {...common} />;
+      case 'receive':
+        return <ReceiveSheet {...common} onReceived={refresh} notify={setToast} />;
+      case 'addEmi':
+        return (
+          <AddEmiSheet
+            {...common}
+            onSaved={(message) => {
+              closeSheet();
+              setToast(message);
+              refresh();
+            }}
+          />
+        );
+      case 'payEmi':
+        return <PayEmiSheet {...common} emi={sheet.emi} balance={data.metrics.currentBalance} onPaid={refresh} />;
+      case 'tx':
+        return (
+          <TransactionSheet
+            tx={sheet.tx}
+            onClose={closeSheet}
+            onUpdated={() => {
+              setToast('Category updated');
+              refresh();
+            }}
+          />
+        );
+      case 'confirm':
+        return <ConfirmSheet {...sheet} onClose={closeSheet} />;
+      default:
+        return null;
     }
   };
 
-  const handlePaymentSuccess = (data) => {
-    setReceiptData(data);
-    setIsReceiptOpen(true);
-    // Reload active user state and all accounts (so both balances refresh immediately)
-    loadData(activeUserId);
+  const renderPage = () => {
+    if (!data) {
+      return error ? (
+        <div className="page" style={{ maxWidth: 480 }}>
+          <Alert>{error}</Alert>
+          <button type="button" className="btn btn-primary" onClick={() => load(userId)}>
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div className="loading" role="status">
+          <LoaderCircle size={28} className="spin" color="var(--brand)" />
+          <span>Loading your account…</span>
+        </div>
+      );
+    }
+
+    switch (tab) {
+      case 'insights':
+        return <InsightsPage data={data} />;
+      case 'emis':
+        return <EmisPage data={data} actions={actions} />;
+      case 'history':
+        return <HistoryPage userId={data.user.id} refreshKey={historyKey} actions={actions} />;
+      case 'profile':
+        return <ProfilePage data={data} accounts={accounts} activeUserId={data.user.id} actions={actions} />;
+      default:
+        return <HomePage data={data} contacts={contacts} actions={actions} />;
+    }
   };
 
-  const handleReceiveSuccess = (data) => {
-    setReceiptData(data);
-    setIsReceiptOpen(true);
-    loadData(activeUserId);
-  };
-
-  const handleOpenPayment = () => {
-    setPreselectedContact(null);
-    setIsPaymentOpen(true);
-  };
-
-  const handleOpenPaymentWithContact = (contact) => {
-    setPreselectedContact(contact);
-    setIsPaymentOpen(true);
-  };
+  const user = data?.user;
 
   return (
-    <div className="app-container">
-      {/* Sidebar Navigation */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        accountInfo={dashboardData?.account}
-        user={dashboardData?.user}
-      />
-
-      {/* Main Content Area */}
-      <main className="main-content">
-        {/* Header with Account Switcher & Quick Actions */}
-        <Header
-          user={dashboardData?.user}
-          account={dashboardData?.account}
-          allAccounts={allAccounts}
-          activeUserId={activeUserId}
-          onSwitchAccount={handleSwitchAccount}
-          onReset={handleReset}
-          onRefresh={() => loadData(activeUserId)}
-          onOpenCheckBalance={() => setIsCheckBalanceOpen(true)}
-          onOpenPayment={handleOpenPayment}
-          onOpenReceive={() => setIsReceiveOpen(true)}
-          onOpenAddEMI={() => setIsAddEMIOpen(true)}
-          isLoading={isLoading}
-        />
-
-        {/* Loading Spinner */}
-        {isLoading && !dashboardData && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '400px',
-            gap: '16px',
-            color: 'var(--text-muted)',
-          }}>
-            <Loader2 size={36} className="animate-spin" color="var(--primary)" />
-            <div style={{ fontSize: '0.94rem', fontWeight: 600 }}>
-              Connecting to Indian UPI Simulated Ledger...
-            </div>
-          </div>
+    <>
+      <header className="topbar">
+        <div className="topbar-brand">
+          <span className="brand-mark">F</span>
+          FinCopilot
+        </div>
+        {user && (
+          <button type="button" className="topbar-profile" onClick={() => go('profile')} aria-label="Open profile">
+            <Avatar name={user.fullName || user.name} size={38} />
+            <span style={{ minWidth: 0 }}>
+              <span className="topbar-name">
+                {user.name} <ChevronDown size={16} />
+              </span>
+              <span className="topbar-sub" style={{ display: 'block' }}>{user.upiId}</span>
+            </span>
+          </button>
         )}
+        <div className="topbar-actions">
+          <button type="button" className="topbar-icon" onClick={refresh} aria-label="Refresh" disabled={loading}>
+            <RefreshCw size={20} className={loading ? 'spin' : ''} />
+          </button>
+        </div>
+      </header>
 
-        {/* Backend Error State */}
-        {error && (
-          <div className="glass-card" style={{
-            borderColor: 'var(--rose-border)',
-            background: 'var(--rose-light)',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <AlertCircle size={22} color="var(--rose)" />
-              <div>
-                <div style={{ fontWeight: 700, color: 'var(--rose-text)', fontSize: '0.94rem' }}>
-                  Connection Notice
-                </div>
-                <div style={{ fontSize: '0.84rem', color: 'var(--rose-text)' }}>{error}</div>
-              </div>
-            </div>
+      <div className="shell">
+        <nav className="sidebar" aria-label="Main">
+          <button type="button" className="btn btn-primary sidebar-pay" onClick={() => actions.pay()} disabled={!data}>
+            <Send size={18} /> Send money
+          </button>
+          {NAV.map(({ id, label, icon: Icon }) => (
             <button
-              onClick={() => loadData(activeUserId)}
-              className="btn btn-secondary"
-              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+              key={id}
+              type="button"
+              className={`sidebar-item ${tab === id ? 'active' : ''}`}
+              onClick={() => go(id)}
+              aria-current={tab === id ? 'page' : undefined}
             >
-              <RefreshCw size={14} />
-              <span>Retry</span>
+              <Icon size={20} strokeWidth={1.8} />
+              {label}
             </button>
-          </div>
-        )}
+          ))}
+          <div className="sidebar-foot">Demo app · simulated UPI payments</div>
+        </nav>
 
-        {/* Active Page Views */}
-        {dashboardData && (
-          <>
-            {activeTab === 'start' && (
-              <StartPage
-                onStart={() => setActiveTab('dashboard')}
-                onNavigateToTab={(tab) => setActiveTab(tab)}
-              />
-            )}
+        <main className="main">{renderPage()}</main>
+      </div>
 
-            {activeTab === 'dashboard' && (
-              <Dashboard
-                dashboardData={dashboardData}
-                onNavigateToTransactions={() => setActiveTab('transactions')}
-                onOpenCheckBalance={() => setIsCheckBalanceOpen(true)}
-                onOpenPayment={handleOpenPayment}
-                onOpenReceive={() => setIsReceiveOpen(true)}
-                onOpenAddEMI={() => setIsAddEMIOpen(true)}
-                onEMIUpdated={() => loadData(activeUserId)}
-              />
-            )}
+      <nav className="bottomnav" aria-label="Main">
+        {NAV.slice(0, 2).map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)}>
+            <Icon size={22} strokeWidth={1.8} />
+            {label}
+          </button>
+        ))}
+        <button type="button" className="bottomnav-item" onClick={() => actions.pay()} disabled={!data}>
+          <span className="bottomnav-pay">
+            <Send size={22} />
+          </span>
+          Pay
+        </button>
+        {NAV.slice(2, 4).map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)}>
+            <Icon size={22} strokeWidth={1.8} />
+            {label}
+          </button>
+        ))}
+      </nav>
 
-            {activeTab === 'payments' && (
-              <PaymentsPage
-                dashboardData={dashboardData}
-                onOpenPaymentWithContact={handleOpenPaymentWithContact}
-                onOpenPayment={handleOpenPayment}
-                onOpenReceive={() => setIsReceiveOpen(true)}
-                onOpenCheckBalance={() => setIsCheckBalanceOpen(true)}
-              />
-            )}
-
-            {activeTab === 'emis' && (
-              <EMIPage
-                dashboardData={dashboardData}
-                activeUserId={activeUserId}
-                onOpenAddEMI={() => setIsAddEMIOpen(true)}
-                onEMIUpdated={() => loadData(activeUserId)}
-              />
-            )}
-
-            {activeTab === 'transactions' && (
-              <TransactionsPage
-                activeUserId={activeUserId}
-                currency={dashboardData?.user?.currency || '₹'}
-              />
-            )}
-
-            {activeTab === 'analysis' && (
-              <AnalysisPage
-                dashboardData={dashboardData}
-                onOpenPayment={handleOpenPayment}
-                onOpenCheckBalance={() => setIsCheckBalanceOpen(true)}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={isPaymentOpen}
-        onClose={() => setIsPaymentOpen(false)}
-        currentBalance={dashboardData?.metrics?.currentBalance || 50000}
-        activeUserId={activeUserId}
-        currency={dashboardData?.user?.currency || '₹'}
-        preselectedContact={preselectedContact}
-        onPaymentSuccess={handlePaymentSuccess}
-      />
-
-      {/* Check Bank Balance Modal */}
-      <CheckBalanceModal
-        isOpen={isCheckBalanceOpen}
-        onClose={() => setIsCheckBalanceOpen(false)}
-        activeUserId={activeUserId}
-        currency={dashboardData?.user?.currency || '₹'}
-        onBalanceVerified={() => loadData(activeUserId)}
-      />
-
-      {/* Receive Money Modal */}
-      <ReceiveMoneyModal
-        isOpen={isReceiveOpen}
-        onClose={() => setIsReceiveOpen(false)}
-        activeUserId={activeUserId}
-        currency={dashboardData?.user?.currency || '₹'}
-        onReceiveSuccess={handleReceiveSuccess}
-      />
-
-      {/* Add EMI Modal */}
-      <AddEMIModal
-        isOpen={isAddEMIOpen}
-        onClose={() => setIsAddEMIOpen(false)}
-        activeUserId={activeUserId}
-        currency={dashboardData?.user?.currency || '₹'}
-        onSuccess={() => loadData(activeUserId)}
-      />
-
-      {/* Receipt Modal */}
-      <ReceiptModal
-        isOpen={isReceiptOpen}
-        onClose={() => setIsReceiptOpen(false)}
-        data={receiptData}
-        currency={dashboardData?.user?.currency || '₹'}
-        onNavigateToTransactions={() => setActiveTab('transactions')}
-      />
-    </div>
+      {renderSheet()}
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
+    </>
   );
 }
-
-export default App;

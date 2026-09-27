@@ -1,4 +1,4 @@
-// Canonical Category Definitions for FinCopilot (Frontend)
+// Canonical category names (must match backend/src/config/categories.js).
 
 export const CATEGORIES = {
   EMI: 'EMI & Loans',
@@ -16,18 +16,3 @@ export const CATEGORIES = {
 };
 
 export const CATEGORY_LIST = Object.values(CATEGORIES);
-export const CANONICAL_CATEGORIES = CATEGORY_LIST;
-
-export const FIXED_EXPENSE_CATEGORIES = [
-  CATEGORIES.EMI,
-  CATEGORIES.HOUSING,
-  'Housing',
-  'Housing & Rent',
-  'EMI',
-];
-
-export const isFixedExpense = (category = '') => {
-  return FIXED_EXPENSE_CATEGORIES.some(
-    (fc) => fc.toLowerCase() === category.toLowerCase() || category.toLowerCase().includes('housing') || category.toLowerCase().includes('emi')
-  );
-};

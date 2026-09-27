@@ -1,4 +1,16 @@
 import { dataService } from '../services/dataService.js';
+import { CATEGORIES, CATEGORY_LIST } from '../config/categories.js';
+
+// NPCI's standard per-transaction limit for person-to-person UPI payments.
+export const MAX_UPI_AMOUNT = 100000;
+const MAX_RECEIVE_AMOUNT = 1000000;
+
+// Returns the amount rounded to paise, or null if it is not a positive number.
+const parseAmount = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  return Math.round(num * 100) / 100;
+};
 
 export const getTransactions = async (req, res) => {
   try {
@@ -24,7 +36,8 @@ export const getTransactions = async (req, res) => {
       query.search = search;
     }
 
-    const transactions = await dataService.getTransactions(query, Number(limit));
+    const safeLimit = Math.min(500, Math.max(1, Number.parseInt(limit, 10) || 100));
+    const transactions = await dataService.getTransactions(query, safeLimit);
 
     return res.status(200).json({
       success: true,
@@ -48,13 +61,19 @@ export const makePayment = async (req, res) => {
       recipientUpi = '',
       amount,
       upiPin,
+      note = '',
       paymentMethod = 'UPI',
     } = req.body;
 
-    // Validate amount
-    const amountNum = Number(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    const amountNum = parseAmount(amount);
+    if (amountNum === null) {
       return res.status(400).json({ success: false, message: 'Enter an amount greater than ₹0.' });
+    }
+    if (amountNum > MAX_UPI_AMOUNT) {
+      return res.status(400).json({
+        success: false,
+        message: `UPI payments are limited to ₹${MAX_UPI_AMOUNT.toLocaleString('en-IN')} per transaction.`,
+      });
     }
 
     // Resolve sender (support senderId or userId)
@@ -69,7 +88,7 @@ export const makePayment = async (req, res) => {
 
     // Validate mobile number if provided
     let digitsOnly = '';
-    if (recipientPhone && recipientPhone.trim()) {
+    if (typeof recipientPhone === 'string' && recipientPhone.trim()) {
       digitsOnly = recipientPhone.replace(/[^0-9]/g, '');
       // If user typed 12 digits like 919876543210, strip leading 91
       if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
@@ -84,14 +103,11 @@ export const makePayment = async (req, res) => {
     }
 
     // Recipient name resolution
-    const finalRecipient = (
-      recipientName ||
-      recipientUpi ||
-      (digitsOnly ? `+91 ${digitsOnly}` : '') ||
-      'Contact'
-    ).trim();
+    const cleanUpi = typeof recipientUpi === 'string' ? recipientUpi.trim() : '';
+    const cleanName = typeof recipientName === 'string' ? recipientName.trim() : '';
+    const finalRecipient = cleanName || cleanUpi || (digitsOnly ? `+91 ${digitsOnly}` : '');
 
-    if (!recipientUpi && !digitsOnly && !recipientName) {
+    if (!cleanUpi && !digitsOnly && !cleanName) {
       return res.status(400).json({
         success: false,
         message: 'Select a recipient or enter a 10-digit mobile number or UPI ID.',
@@ -102,9 +118,10 @@ export const makePayment = async (req, res) => {
       senderId: activeSenderId,
       recipientName: finalRecipient,
       recipientPhone: digitsOnly,
-      recipientUpi: recipientUpi.trim(),
+      recipientUpi: cleanUpi,
       amount: amountNum,
       upiPin,
+      note: typeof note === 'string' ? note.trim().slice(0, 120) : '',
       paymentMethod: paymentMethod || 'UPI',
     });
 
@@ -120,8 +137,8 @@ export const makePayment = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[transactionController] makePayment error:', error);
-    return res.status(400).json({ success: false, message: error.message || 'Payment failed.' });
+    if (!error.status) console.error('[transactionController] makePayment error:', error);
+    return res.status(error.status || 500).json({ success: false, message: error.message || 'Payment failed.' });
   }
 };
 
@@ -132,7 +149,8 @@ export const receiveMoney = async (req, res) => {
       userId,
       amount,
       senderName = 'Friend',
-      category = 'Daily Expenses',
+      category = CATEGORIES.OTHER,
+      note = '',
       paymentMethod = 'UPI',
     } = req.body;
 
@@ -147,35 +165,36 @@ export const receiveMoney = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No active account found' });
     }
 
-    const amountNum = Number(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    const amountNum = parseAmount(amount);
+    if (amountNum === null) {
       return res.status(400).json({ success: false, message: 'Enter an amount greater than ₹0.' });
     }
+    if (amountNum > MAX_RECEIVE_AMOUNT) {
+      return res.status(400).json({ success: false, message: 'Amount is too large for a single credit.' });
+    }
 
-    const sender = senderName.trim() || 'Sender';
+    const sender = (typeof senderName === 'string' && senderName.trim()) || 'Sender';
+    const cleanNote = typeof note === 'string' ? note.trim().slice(0, 120) : '';
 
     const newTx = await dataService.addTransaction({
       accountId: account.id || account._id,
       userId: targetUserId,
       title: `Received from ${sender}`,
       merchant: sender,
-      category: category || 'Daily Expenses',
+      category: CATEGORY_LIST.includes(category) ? category : CATEGORIES.OTHER,
       type: 'credit',
       amount: amountNum,
-      description: `Received via ${paymentMethod}`,
+      description: cleanNote || `Received via ${paymentMethod}`,
       status: 'completed',
       paymentMethod: paymentMethod,
       date: new Date().toISOString(),
     });
 
-    const currentBalance = Number(account.currentBalance) || 0;
-    const updatedBalance = currentBalance + amountNum;
-    const updatedCredited = (Number(account.totalCredited) || 0) + amountNum;
-
-    await dataService.updateAccountBalances(account.id || account._id, {
-      currentBalance: updatedBalance,
-      totalCredited: updatedCredited,
+    const updatedAccount = await dataService.adjustAccountBalance(account.id || account._id, {
+      balanceDelta: amountNum,
+      creditedDelta: amountNum,
     });
+    const updatedBalance = updatedAccount ? updatedAccount.currentBalance : Number(account.currentBalance) + amountNum;
 
     return res.status(201).json({
       success: true,
@@ -197,11 +216,11 @@ export const updateCategory = async (req, res) => {
     const { id } = req.params;
     const { category } = req.body;
 
-    if (!category || !category.trim()) {
-      return res.status(400).json({ success: false, message: 'Category is required.' });
+    if (!CATEGORY_LIST.includes(category)) {
+      return res.status(400).json({ success: false, message: 'Choose a valid category.' });
     }
 
-    const updated = await dataService.updateTransactionCategory(id, category.trim());
+    const updated = await dataService.updateTransactionCategory(id, category);
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Transaction not found.' });
     }

@@ -1,15 +1,64 @@
 import { CATEGORIES } from '../config/categories.js';
 
-// Calculate days remaining until target day of month (1-31)
-export const getDaysUntil = (dueDay) => {
-  const now = new Date();
+// Calculate days remaining until target day of month (1-31).
+// A due day beyond the month's length (e.g. 31 in September) falls on the month's last day.
+export const getDaysUntil = (dueDay, now = new Date()) => {
   const currentDay = now.getDate();
-
-  if (dueDay >= currentDay) {
-    return dueDay - currentDay;
-  }
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  return daysInMonth - currentDay + dueDay;
+  const thisMonthDue = Math.min(Number(dueDay), daysInMonth);
+
+  if (thisMonthDue >= currentDay) {
+    return thisMonthDue - currentDay;
+  }
+  const daysInNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate();
+  return daysInMonth - currentDay + Math.min(Number(dueDay), daysInNextMonth);
+};
+
+// An EMI paid within the last PAID_CYCLE_DAYS counts as paid for the current cycle; after that
+// it becomes due again for the next month.
+const PAID_CYCLE_DAYS = 25;
+
+export const isPaidThisCycle = (emi, now = new Date()) => {
+  if (emi.status !== 'paid_this_cycle') return false;
+  if (!emi.lastPaidDate) return true;
+  const daysSincePaid = (now.getTime() - new Date(emi.lastPaidDate).getTime()) / 86400000;
+  return daysSincePaid < PAID_CYCLE_DAYS;
+};
+
+// Adds due-date countdown, reminder text and urgency level to an EMI record.
+export const enrichEmi = (emi) => {
+  const plain = typeof emi.toObject === 'function' ? emi.toObject() : emi;
+  const daysRemaining = plain.dueDay ? getDaysUntil(plain.dueDay) : 10;
+  const paid = isPaidThisCycle(plain);
+  let reminderBadge;
+  let urgencyLevel;
+
+  const closed = plain.remainingInstallments !== undefined && Number(plain.remainingInstallments) <= 0;
+
+  if (closed) {
+    reminderBadge = 'Loan closed';
+    urgencyLevel = 'paid';
+  } else if (paid) {
+    reminderBadge = 'Paid this cycle';
+    urgencyLevel = 'paid';
+  } else if (daysRemaining === 0) {
+    reminderBadge = 'Due today';
+    urgencyLevel = 'critical';
+  } else if (daysRemaining === 1) {
+    reminderBadge = 'Due tomorrow';
+    urgencyLevel = 'critical';
+  } else {
+    reminderBadge = `Due in ${daysRemaining} days`;
+    urgencyLevel = daysRemaining <= 3 ? 'warning' : 'normal';
+  }
+
+  return {
+    ...plain,
+    status: closed ? 'closed' : paid ? 'paid_this_cycle' : 'upcoming',
+    daysRemaining,
+    reminderBadge,
+    urgencyLevel,
+  };
 };
 
 // Check if a category represents a fixed recurring obligation (excluded from discretionary daily burn rate)
@@ -43,6 +92,7 @@ export const analyzeFinancialState = ({
   let totalDebitSum = 0;
   let totalCreditSum = 0;
   let nonFixedDebitsSum = 0;
+  let housingDebitsSum = 0;
   const categoryMap = {};
 
   transactions.forEach((tx) => {
@@ -55,6 +105,8 @@ export const analyzeFinancialState = ({
 
       if (!isFixedCategory(tx.category)) {
         nonFixedDebitsSum += amt;
+      } else if (tx.category === CATEGORIES.HOUSING) {
+        housingDebitsSum += amt;
       }
       if (txTime > checkTime) {
         debitsSinceCheck += amt;
@@ -77,37 +129,9 @@ export const analyzeFinancialState = ({
     .sort((a, b) => b.amount - a.amount);
 
   // 2. EMI Obligations & Days Remaining
-  const enrichedEmis = emis.map((emi) => {
-    const daysRemaining = emi.dueDay ? getDaysUntil(emi.dueDay) : 10;
-    let reminderBadge = 'Upcoming';
-    let urgencyLevel = 'normal';
+  const enrichedEmis = emis.map(enrichEmi);
 
-    if (emi.status === 'paid_this_cycle') {
-      reminderBadge = 'Paid this cycle';
-      urgencyLevel = 'paid';
-    } else if (daysRemaining === 0) {
-      reminderBadge = 'Due Today!';
-      urgencyLevel = 'critical';
-    } else if (daysRemaining === 1) {
-      reminderBadge = 'Due Tomorrow';
-      urgencyLevel = 'critical';
-    } else if (daysRemaining <= 3) {
-      reminderBadge = `Due in ${daysRemaining} days`;
-      urgencyLevel = 'warning';
-    } else {
-      reminderBadge = `Due in ${daysRemaining} days`;
-      urgencyLevel = 'normal';
-    }
-
-    return {
-      ...emi,
-      daysRemaining,
-      reminderBadge,
-      urgencyLevel,
-    };
-  });
-
-  const unpaidUpcomingEMIs = enrichedEmis.filter((e) => e.status !== 'paid_this_cycle');
+  const unpaidUpcomingEMIs = enrichedEmis.filter((e) => e.status === 'upcoming');
   let nextEMI = null;
   let totalUpcomingEMIAmount = 0;
   let daysUntilNextEMI = 10;
@@ -202,9 +226,11 @@ export const analyzeFinancialState = ({
   const monthlyIncome = Number(user.monthlyIncome || 50000);
 
   // 7. Multi-Horizon Forecast (30, 60, 90 Days)
-  const monthlyEmiTotal = emis.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const monthlyEmiTotal = enrichedEmis
+    .filter((e) => e.status !== 'closed')
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const monthlyDiscretionary = dailyBurnRate * 30;
-  const monthlyHousing = 10000; // Fixed baseline rent
+  const monthlyHousing = housingDebitsSum; // Rent seen in the ledger
 
   const forecastHorizons = [
     {
