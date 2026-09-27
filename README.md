@@ -66,7 +66,7 @@ Data is stored in `backend/data/db.json` unless `MONGODB_URI` is set (see `.env.
 ## Tests
 
 ```bash
-cd backend && npm test           # 12 API tests, uses a temporary data directory
+cd backend && npm test           # 13 API tests, uses a temporary data directory
 cd frontend && npm run build     # production build
 ```
 

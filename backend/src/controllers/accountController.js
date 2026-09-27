@@ -150,6 +150,7 @@ export const getDashboardData = async (req, res) => {
           nextEMI: analysis.nextEMI,
           riskStatus: analysis.riskStatus,
           dailyBurnRate: analysis.dailyBurnRate,
+          discretionarySpend: analysis.discretionarySpend,
           expectedNormalExpenses: analysis.expectedNormalExpenses,
           safetyReserve: analysis.safetyReserve,
           riskReason: analysis.riskReason,

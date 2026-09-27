@@ -224,3 +224,17 @@ test('forecast uses rent from the ledger instead of a fixed amount', async () =>
   // Rahul has no rent payments, so obligations are EMI + 30 days of discretionary spend
   assert.equal(d30.projectedObligations, 4000 + rahul.metrics.dailyBurnRate * 30);
 });
+
+test('the affordability simulator predicts the dashboard after a real payment', async () => {
+  const { simulateSpend } = await import('../../frontend/src/lib/affordability.js');
+  for (const amount of [2000, 10000, 20000, 30000]) {
+    await reset();
+    const before = (await dashboard('user_siddhartha')).metrics;
+    const predicted = simulateSpend(before, amount);
+    await pay({ recipientPhone: '9823456781', amount });
+    const after = (await dashboard('user_siddhartha')).metrics;
+    assert.equal(predicted.status, after.riskStatus, `status after paying ${amount}`);
+    assert.equal(predicted.safeToSpend, after.safeToSpend, `safe-to-spend after paying ${amount}`);
+    assert.equal(predicted.dailyBurnRate, after.dailyBurnRate, `burn rate after paying ${amount}`);
+  }
+});

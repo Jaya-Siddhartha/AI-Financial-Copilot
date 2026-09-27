@@ -31,7 +31,8 @@ All of these are fixed. The UI was rebuilt in a clean, mobile-first payment-app 
 | Dependencies install | `npm install` in `backend/`, `frontend/`, root | OK |
 | Original test script (15 scenarios) | Ran against a live local server | 15/15 passed (baseline) |
 | Suspected defects | Targeted `curl` requests against the running API | 8 confirmed (see §3) |
-| New API test suite | `cd backend && npm test` (12 tests, node:test) | **12/12 pass** |
+| New API test suite | `cd backend && npm test` (13 tests, node:test) | **13/13 pass** |
+| Prediction engine scenarios | Formula recomputed by hand, SAFE → CAUTION → HIGH RISK → SAFE walk, simulator vs real payment at 6 amounts, 7-day and 30/60/90-day math | **25/25 pass** (after fix F11) |
 | Frontend production build | `cd frontend && npm run build` | OK: 263 kB JS / 84 kB gzipped, 18 kB CSS |
 | Full UI walkthrough | Playwright + Chromium, 390×844 phone and 1440×900 desktop | All flows pass (§5) |
 | Layout at small width | 360 px viewport, every tab | No horizontal overflow |
@@ -87,6 +88,7 @@ Severity: **High** means money, security or data integrity. **Medium** means wro
 | F8 | Low | Not usable on phones: fixed 260 px sidebar, a header with six buttons, tables that scroll sideways. | **Rebuilt** mobile-first |
 | F9 | Low | Dead code: `OnboardingModal` (imported, never shown), two placeholder pages, `SpendingChart` (dark-theme leftover with white text on white), `StartPage` marketing page. | **Removed** |
 | F10 | Low | Unused dependencies: `chart.js`, `react-chartjs-2`, `clsx`. | **Removed** |
+| F11 | Med | The "Can I afford it?" simulator and the pay-screen warning disagreed with the dashboard after the payment was made. Example: ₹20,000 was predicted **SAFE (₹4,400 left)** but became **HIGH RISK (₹0)** once paid. The engine adds each payment to the spending behind the daily burn rate; the simulator didn't. | **Fixed.** The simulator now uses the engine's `discretionarySpend` and matches the post-payment dashboard exactly (API test 13) |
 
 ### 3.3 Repository and deployment
 
@@ -110,6 +112,7 @@ Severity: **High** means money, security or data integrity. **Medium** means wro
 | Data on Vercel | Without `MONGODB_URI`, data lives in `/tmp` per function instance. Different instances can show different balances, and data resets on cold start. Set `MONGODB_URI` for a stable demo. |
 | CORS | Open to every origin (`cors()`). |
 | Rate limiting | Only the PIN lockout. There is no general request limit. |
+| Burn-rate model | Daily spending = all discretionary debits ÷ 30 (minimum ₹300), with no date window. A one-off purchase is treated as if it repeats daily until the EMI: after a ₹20,000 purchase, "expected daily spending" jumps from ₹3,600 to ₹11,196. The formula was kept unchanged on request. See UPGRADES.md §2 P2 for the fix (dated window, trimmed mean). |
 | Seed data | Siddhartha's seeded balance (₹50,000) doesn't reconcile with the seeded transactions (+₹50,000 salary, −₹18,000 spending). Cosmetic for a demo. |
 | `api/index.js` + root `package.json` deps | Probably unused with the `services` config in `vercel.json`, but left untouched because the deployment couldn't be inspected. |
 
@@ -157,6 +160,7 @@ The product concept, the two demo accounts and their numbers, demo PIN `1234`, t
 10. Category whitelist, and `_id === id`
 11. A partial-name payment doesn't credit a demo account
 12. The forecast uses rent from the ledger
+13. The affordability simulator predicts status, safe-to-spend and burn rate after a real payment
 
 **Browser walkthrough** (Playwright, Chromium): load home → pay by mobile number (auto-matched to Rahul) with a note → wrong PIN shows "2 attempts left" → correct PIN gives the success screen → a large amount shows the EMI shortfall warning → check balance → receive money → Insights what-if → add EMI → pay EMI → history search and category change → switch to Rahul → change PIN → desktop home, insights, history and pay dialog → 360 px overflow check on every tab.
 

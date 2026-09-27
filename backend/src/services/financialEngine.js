@@ -295,6 +295,7 @@ export const analyzeFinancialState = ({
     totalUpcomingEMI: totalUpcomingEMIAmount,
     nextEMI,
     dailyBurnRate,
+    discretionarySpend: nonFixedDebitsSum,
     expectedNormalExpenses,
     safetyReserve,
     totalObligations,
