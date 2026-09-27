@@ -6,6 +6,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// The standalone demo build answers API calls inside the page instead of calling a server.
+if (__BROWSER_DEMO__) {
+  api.defaults.baseURL = '/';
+  api.defaults.adapter = (config) => import('./browserApi.js').then((m) => m.browserAdapter(config));
+}
+
 const data = (promise) => promise.then((res) => res.data);
 
 export const fetchAllAccounts = () => data(api.get('/account/all'));

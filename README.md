@@ -63,6 +63,17 @@ Open http://localhost:5173. The backend seeds the two demo accounts on first sta
 
 Data is stored in `backend/data/db.json` unless `MONGODB_URI` is set (see `.env.example`), in which case MongoDB is used. On Vercel without `MONGODB_URI`, data lives in `/tmp` and resets when the function instance is recycled.
 
+## Browser-only demo
+
+`cd frontend && npm run build:demo` builds `frontend/dist-demo/fincopilot-demo.html`, a single page that runs without a server. API calls are answered inside the page by `src/services/browserApi.js`, which reuses the backend's financial engine, categories and seed data. State is kept in the browser's localStorage, and the demo uses placeholder bank names.
+
+To check that it behaves like the real server, run the backend tests against it:
+
+```bash
+cd frontend && node scripts/serve-browser-api.mjs 5055 &
+cd backend && API_URL=http://127.0.0.1:5055/api npm test
+```
+
 ## Tests
 
 ```bash

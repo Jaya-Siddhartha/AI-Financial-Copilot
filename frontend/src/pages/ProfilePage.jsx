@@ -102,6 +102,7 @@ export function ProfilePage({ data, accounts, activeUserId, actions }) {
         </div>
         <p className="muted small" style={{ marginTop: 16 }}>
           This is a demo. Accounts, banks and payments are simulated and no real money moves.
+          {__BROWSER_DEMO__ && ' Everything runs in this browser and is saved only on this device.'}
         </p>
       </section>
     </div>

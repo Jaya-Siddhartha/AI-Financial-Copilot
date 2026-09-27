@@ -96,7 +96,7 @@ button:disabled {
 
 .topbar {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   z-index: 30;
   height: var(--topbar-h);
   background: var(--brand);
@@ -269,7 +269,7 @@ button:disabled {
     flex-direction: column;
     gap: 4px;
     position: sticky;
-    top: var(--topbar-h);
+    top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
     width: var(--sidebar-w);
     height: calc(100vh - var(--topbar-h));
     padding: 16px 12px;

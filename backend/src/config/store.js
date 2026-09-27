@@ -19,32 +19,7 @@ try {
   console.warn('[Store] Could not create DATA_DIR:', err.message);
 }
 
-export const DEMO_USERS = {
-  SIDDHARTHA: {
-    id: 'user_siddhartha',
-    name: 'Siddhartha',
-    fullName: 'Siddhartha Mukherjee',
-    mobile: '+91 9876543210',
-    phoneOnly: '9876543210',
-    upiId: 'siddhartha@fin',
-    upiPin: '1234',
-    startingBalance: 50000,
-    monthlyIncome: 50000,
-    salaryDate: 1,
-  },
-  RAHUL: {
-    id: 'user_rahul',
-    name: 'Rahul Sharma',
-    fullName: 'Rahul Sharma',
-    mobile: '+91 9123456780',
-    phoneOnly: '9123456780',
-    upiId: 'rahul@fin',
-    upiPin: '1234',
-    startingBalance: 30000,
-    monthlyIncome: 30000,
-    salaryDate: 5,
-  },
-};
+export { DEMO_USERS } from '../services/seedData.js';
 
 const defaultData = {
   users: [],

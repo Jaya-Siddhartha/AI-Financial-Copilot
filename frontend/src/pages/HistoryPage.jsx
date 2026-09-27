@@ -84,9 +84,11 @@ export function HistoryPage({ userId, refreshKey, actions }) {
           <h1 className="page-title">History</h1>
           <p className="page-sub">All payments and credits on this account.</p>
         </div>
-        <button type="button" className="btn btn-outline btn-sm" onClick={download} disabled={transactions.length === 0}>
-          <Download size={16} /> Statement
-        </button>
+        {!__BROWSER_DEMO__ && (
+          <button type="button" className="btn btn-outline btn-sm" onClick={download} disabled={transactions.length === 0}>
+            <Download size={16} /> Statement
+          </button>
+        )}
       </div>
 
       <section className="card">

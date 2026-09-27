@@ -9,6 +9,7 @@ backend/node_modules
 # Build outputs
 dist
 frontend/dist
+frontend/dist-demo
 
 # Environment & Local data
 .env

@@ -17,14 +17,20 @@ const { default: app } = await import('../src/server.js');
 let server;
 let baseUrl;
 
+// API_URL runs the same tests against another implementation of the API
+// (e.g. the in-browser demo backend wrapped in a small HTTP server).
 before(async () => {
+  if (process.env.API_URL) {
+    baseUrl = process.env.API_URL;
+    return;
+  }
   server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   baseUrl = `http://127.0.0.1:${server.address().port}/api`;
 });
 
 after(() => {
-  server.close();
+  server?.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
 });
 
