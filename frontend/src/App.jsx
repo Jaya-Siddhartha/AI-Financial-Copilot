@@ -28,6 +28,8 @@ import { ConfirmSheet } from './flows/ConfirmSheet';
 import { deleteEMIApi, fetchAllAccounts, fetchDashboardData, resetDemo } from './services/api';
 import { DEMO_CONTACTS } from './constants/contacts';
 import { apiError } from './lib/format';
+import { useSettings } from './lib/settings';
+import { stopSpeaking } from './lib/speech';
 
 const DEFAULT_USER = 'user_siddhartha';
 const USER_KEY = 'fincopilot.activeUser';
@@ -39,6 +41,14 @@ const NAV = [
   { id: 'history', label: 'History', icon: History },
   { id: 'profile', label: 'Profile', icon: User },
 ];
+// Phones: four tabs around a central Pay button. History is one tap away from Home and Profile.
+const BOTTOM_NAV = ['home', 'insights', 'emis', 'profile'].map((id) => NAV.find((n) => n.id === id));
+
+// The open tab lives in the URL hash (#insights), so Back works and pages can be linked to.
+const tabFromHash = () => {
+  const id = window.location.hash.replace('#', '');
+  return NAV.some((n) => n.id === id) ? id : 'home';
+};
 
 const readStoredUser = () => {
   try {
@@ -49,7 +59,7 @@ const readStoredUser = () => {
 };
 
 export default function App() {
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState(tabFromHash);
   const [userId, setUserId] = useState(readStoredUser);
   const [accounts, setAccounts] = useState([]);
   const [data, setData] = useState(null);
@@ -58,6 +68,7 @@ export default function App() {
   const [sheet, setSheet] = useState(null);
   const [toast, setToast] = useState('');
   const [historyKey, setHistoryKey] = useState(0);
+  const [settings, setSettings] = useSettings();
 
   const load = useCallback(async (targetUserId) => {
     setLoading(true);
@@ -85,6 +96,16 @@ export default function App() {
   }, [userId, load]);
 
   useEffect(() => {
+    const onHash = () => {
+      stopSpeaking();
+      setTab(tabFromHash());
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(''), 2500);
     return () => clearTimeout(t);
@@ -106,13 +127,26 @@ export default function App() {
   }, [accounts, userId]);
 
   const go = (next) => {
-    setTab(next);
-    window.scrollTo({ top: 0 });
+    if (next === tab) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    if (next === 'home') {
+      // A clean URL for Home; pushState does not fire 'hashchange', so switch here.
+      window.history.pushState(null, '', window.location.pathname + window.location.search);
+      stopSpeaking();
+      setTab('home');
+      window.scrollTo({ top: 0 });
+    } else {
+      // Setting the hash fires 'hashchange', which switches the tab.
+      window.location.hash = next;
+    }
   };
 
   const actions = {
     go,
     notify: setToast,
+    setSettings,
     pay: (payee = null, mode) => setSheet({ type: 'pay', payee, mode }),
     checkBalance: () => setSheet({ type: 'balance' }),
     receive: () => setSheet({ type: 'receive' }),
@@ -216,7 +250,7 @@ export default function App() {
   const renderPage = () => {
     if (!data) {
       return error ? (
-        <div className="page" style={{ maxWidth: 480 }}>
+        <div className="page narrow">
           <Alert>{error}</Alert>
           <button type="button" className="btn btn-primary" onClick={() => load(userId)}>
             Try again
@@ -224,7 +258,7 @@ export default function App() {
         </div>
       ) : (
         <div className="loading" role="status">
-          <LoaderCircle size={28} className="spin" color="var(--brand)" />
+          <LoaderCircle size={32} className="spin text-accent" />
           <span>Loading your account…</span>
         </div>
       );
@@ -238,9 +272,9 @@ export default function App() {
       case 'history':
         return <HistoryPage userId={data.user.id} refreshKey={historyKey} actions={actions} />;
       case 'profile':
-        return <ProfilePage data={data} accounts={accounts} activeUserId={data.user.id} actions={actions} />;
+        return <ProfilePage data={data} accounts={accounts} activeUserId={data.user.id} actions={actions} settings={settings} />;
       default:
-        return <HomePage data={data} contacts={contacts} actions={actions} />;
+        return <HomePage data={data} contacts={contacts} actions={actions} settings={settings} />;
     }
   };
 
@@ -249,32 +283,33 @@ export default function App() {
   return (
     <>
       <header className="topbar">
-        <div className="topbar-brand">
-          <span className="brand-mark">F</span>
-          FinCopilot
-        </div>
-        {user && (
-          <button type="button" className="topbar-profile" onClick={() => go('profile')} aria-label="Open profile">
-            <Avatar name={user.fullName || user.name} size={38} />
-            <span style={{ minWidth: 0 }}>
-              <span className="topbar-name">
-                {user.name} <ChevronDown size={16} />
-              </span>
-              <span className="topbar-sub" style={{ display: 'block' }}>{user.upiId}</span>
-            </span>
-          </button>
-        )}
+        <button type="button" className="topbar-brand" onClick={() => go('home')} aria-label="FinCopilot home">
+          <span className="brand-mark" aria-hidden="true">F</span>
+          <span className="brand-name">FINCOPILOT</span>
+          <span className="brand-tag" aria-hidden="true">/UPI</span>
+        </button>
         <div className="topbar-actions">
           <button type="button" className="topbar-icon" onClick={refresh} aria-label="Refresh" disabled={loading}>
             <RefreshCw size={20} className={loading ? 'spin' : ''} />
           </button>
+          {user && (
+            <button type="button" className="topbar-profile" onClick={() => go('profile')} aria-label={`${user.name}: open profile and settings`}>
+              <Avatar name={user.fullName || user.name} size={36} />
+              <span className="topbar-who">
+                <span className="topbar-name">
+                  {user.name} <ChevronDown size={16} aria-hidden="true" />
+                </span>
+                <span className="topbar-sub">{user.upiId}</span>
+              </span>
+            </button>
+          )}
         </div>
       </header>
 
       <div className="shell">
         <nav className="sidebar" aria-label="Main">
           <button type="button" className="btn btn-primary sidebar-pay" onClick={() => actions.pay()} disabled={!data}>
-            <Send size={18} /> Send money
+            <Send size={20} /> Send money
           </button>
           {NAV.map(({ id, label, icon: Icon }) => (
             <button
@@ -284,32 +319,32 @@ export default function App() {
               onClick={() => go(id)}
               aria-current={tab === id ? 'page' : undefined}
             >
-              <Icon size={20} strokeWidth={1.8} />
+              <Icon size={22} strokeWidth={1.8} />
               {label}
             </button>
           ))}
-          <div className="sidebar-foot">Demo app · simulated UPI payments</div>
+          <div className="sidebar-foot">DEMO · PRETEND UPI PAYMENTS</div>
         </nav>
 
         <main className="main">{renderPage()}</main>
       </div>
 
       <nav className="bottomnav" aria-label="Main">
-        {NAV.slice(0, 2).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)}>
-            <Icon size={22} strokeWidth={1.8} />
+        {BOTTOM_NAV.slice(0, 2).map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}>
+            <Icon size={24} strokeWidth={1.8} />
             {label}
           </button>
         ))}
         <button type="button" className="bottomnav-item" onClick={() => actions.pay()} disabled={!data}>
           <span className="bottomnav-pay">
-            <Send size={22} />
+            <Send size={24} />
           </span>
           Pay
         </button>
-        {NAV.slice(2, 4).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)}>
-            <Icon size={22} strokeWidth={1.8} />
+        {BOTTOM_NAV.slice(2, 4).map(({ id, label, icon: Icon }) => (
+          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => go(id)} aria-current={tab === id ? 'page' : undefined}>
+            <Icon size={24} strokeWidth={1.8} />
             {label}
           </button>
         ))}

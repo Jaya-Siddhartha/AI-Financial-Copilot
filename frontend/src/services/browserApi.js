@@ -23,7 +23,8 @@ class ApiError extends Error {
   }
 }
 
-const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const newId = () => (globalThis.crypto?.randomUUID?.() || `${Math.random()}${Date.now()}`).replace(/[^a-z0-9]/gi, '').slice(0, 20);
+const cleanText = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 const nowIso = () => new Date().toISOString();
 const digitsOf = (value) => String(value || '').replace(/[^0-9]/g, '').slice(-10);
 const parseAmount = (value) => {
@@ -100,7 +101,8 @@ const assertUpiPin = (user, enteredPin, wrongPinMessage) => {
   }
   const pin = String(enteredPin ?? '').trim();
   if (!/^\d{4}$/.test(pin)) throw new ApiError(400, 'Enter your 4-digit UPI PIN.');
-  if (pin !== String(user.upiPin || '1234')) {
+  if (!user.upiPin) throw new ApiError(403, 'No UPI PIN is set for this account.');
+  if (pin !== String(user.upiPin)) {
     const attempts = (user.pinFailedAttempts || 0) + 1;
     if (attempts >= MAX_PIN_ATTEMPTS) {
       user.pinFailedAttempts = 0;
@@ -183,6 +185,7 @@ const routes = {
           totalUpcomingEMI: a.totalUpcomingEMI,
           nextEMI: a.nextEMI,
           riskStatus: a.riskStatus,
+          overdueCount: a.overdueCount,
           dailyBurnRate: a.dailyBurnRate,
           discretionarySpend: a.discretionarySpend,
           expectedNormalExpenses: a.expectedNormalExpenses,
@@ -233,12 +236,21 @@ const routes = {
     };
   },
 
+  'POST /account/verify-pin': ({ body }) => {
+    const user = findUser(body.userId);
+    if (!user) throw new ApiError(404, 'User account not found.');
+    assertUpiPin(user, body.upiPin, 'Current UPI PIN is incorrect.');
+    save();
+    return { success: true, message: 'UPI PIN verified.' };
+  },
+
   'POST /account/update-pin': ({ body }) => {
     const user = findUser(body.userId);
     if (!user) throw new ApiError(404, 'User account not found.');
     assertUpiPin(user, body.oldPin, 'Current UPI PIN is incorrect.');
     const next = String(body.newPin ?? '').trim();
     if (!/^\d{4}$/.test(next)) throw new ApiError(400, 'New UPI PIN must be exactly 4 digits.');
+    if (next === String(user.upiPin)) throw new ApiError(400, 'Choose a new UPI PIN that is different from the current one.');
     user.upiPin = next;
     save();
     return { success: true, message: 'UPI PIN updated successfully.' };
@@ -273,8 +285,8 @@ const routes = {
       if (phone.length === 12 && phone.startsWith('91')) phone = phone.slice(2);
       if (phone.length !== 10) throw new ApiError(400, 'Invalid mobile number. Please enter exactly 10 digits for Indian mobile numbers.');
     }
-    const upi = typeof body.recipientUpi === 'string' ? body.recipientUpi.trim() : '';
-    const name = typeof body.recipientName === 'string' ? body.recipientName.trim() : '';
+    const upi = cleanText(body.recipientUpi, 60);
+    const name = cleanText(body.recipientName, 60);
     if (!upi && !phone && !name) throw new ApiError(400, 'Select a recipient or enter a 10-digit mobile number or UPI ID.');
     const finalRecipient = name || upi || `+91 ${phone}`;
 
@@ -349,7 +361,7 @@ const routes = {
     const amt = parseAmount(body.amount);
     if (amt === null) throw new ApiError(400, 'Enter an amount greater than ₹0.');
     if (amt > MAX_RECEIVE_AMOUNT) throw new ApiError(400, 'Amount is too large for a single credit.');
-    const sender = (typeof body.senderName === 'string' && body.senderName.trim()) || 'Sender';
+    const sender = cleanText(body.senderName, 60) || 'Sender';
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 120) : '';
     const tx = addTransaction({
       accountId: account.id,
@@ -376,7 +388,7 @@ const routes = {
   'PATCH /transactions/:id/category': ({ params, body }) => {
     if (!CATEGORY_LIST.includes(body.category)) throw new ApiError(400, 'Choose a valid category.');
     const tx = db.transactions.find((t) => t.id === params.id || t._id === params.id);
-    if (!tx) throw new ApiError(404, 'Transaction not found.');
+    if (!tx || !body.userId || tx.userId !== body.userId) throw new ApiError(404, 'Transaction not found.');
     tx.category = body.category;
     tx.updatedAt = nowIso();
     save();
@@ -385,20 +397,21 @@ const routes = {
 
   'GET /emi': ({ query }) => {
     const user = activeUser(query.userId);
-    const data = db.emis.filter((e) => e.userId === user.id).map(enrichEmi);
+    const data = db.emis.filter((e) => e.userId === user.id).map((e) => enrichEmi(e));
     return { success: true, count: data.length, data };
   },
 
   'POST /emi': ({ body }) => {
     const user = activeUser(body.userId);
     const account = accountOf(user.id);
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const name = cleanText(body.name, 60);
     if (!name) throw new ApiError(400, 'Enter a name for the EMI.');
     const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) throw new ApiError(400, 'Enter a valid positive EMI amount.');
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 10000000) throw new ApiError(400, 'Enter a valid EMI amount.');
+    if (body.frequency !== undefined && body.frequency !== 'Monthly') throw new ApiError(400, 'Only monthly EMIs are supported.');
     const dueDay = Number(body.dueDay);
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) throw new ApiError(400, 'Due day must be between 1 and 31.');
-    const installments = Math.max(1, Math.round(Number(body.remainingInstallments) || 12));
+    const installments = Math.min(600, Math.max(1, Math.round(Number(body.remainingInstallments) || 12)));
     const id = newId();
     const emi = {
       _id: id,
@@ -406,8 +419,8 @@ const routes = {
       userId: user.id,
       accountId: account.id,
       name,
-      lender: typeof body.lender === 'string' && body.lender.trim() ? body.lender.trim() : 'Finance Provider',
-      amount,
+      lender: cleanText(body.lender, 60) || 'Finance Provider',
+      amount: Math.round(amount * 100) / 100,
       dueDay,
       dueDate: new Date(Date.now() + getDaysUntil(dueDay) * 86400000).toISOString(),
       frequency: 'Monthly',
@@ -428,8 +441,9 @@ const routes = {
     const stored = db.emis.find((e) => e.userId === user.id && (e.id === params.id || e._id === params.id));
     if (!stored) throw new ApiError(404, 'EMI record not found.');
     const emi = enrichEmi(stored);
-    if (emi.status === 'paid_this_cycle') throw new ApiError(400, 'This EMI is already paid for the current cycle.');
+    if (emi.status === 'paid_this_cycle') throw new ApiError(400, 'This EMI is already paid for this month.');
     if (emi.status === 'closed') throw new ApiError(400, 'This loan is already closed.');
+    assertUpiPin(user, body.upiPin, 'Incorrect UPI PIN. EMI not paid.');
     const amount = Number(emi.amount);
     if (!adjustBalance(account, { balanceDelta: -amount, debitedDelta: amount, requireFunds: amount })) {
       throw new ApiError(400, `Insufficient balance (₹${account.currentBalance.toLocaleString('en-IN')}) to pay EMI of ₹${amount.toLocaleString('en-IN')}.`);

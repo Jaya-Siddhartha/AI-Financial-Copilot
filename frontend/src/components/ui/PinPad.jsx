@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Delete, LoaderCircle } from 'lucide-react';
+import { Check, Delete, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { Alert } from './Alert';
 
 const PIN_LENGTH = 4;
@@ -36,11 +36,12 @@ export function PinPad({ title = 'ENTER 4-DIGIT UPI PIN', summary, error, busy =
     <div>
       {summary}
       <div className="pin-title">{title}</div>
-      <div className="pin-dots" aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}>
+      <div className="pin-dots" aria-hidden="true">
         {Array.from({ length: PIN_LENGTH }, (_, i) => (
           <span key={i} className={`pin-dot ${i < pin.length ? 'filled' : ''} ${i === pin.length ? 'current' : ''}`} />
         ))}
       </div>
+      <div className="sr-only" aria-live="polite">{`${pin.length} of ${PIN_LENGTH} digits entered`}</div>
       <div className="pin-hint">Demo UPI PIN is 1234</div>
       {error && (
         <div className="pin-error">
@@ -71,6 +72,10 @@ export function PinPad({ title = 'ENTER 4-DIGIT UPI PIN', summary, error, busy =
           )
         )}
       </div>
+      <p className="pin-safety">
+        <ShieldCheck size={16} aria-hidden="true" />
+        Never share your UPI PIN. You only need it to send money, never to receive it.
+      </p>
     </div>
   );
 }

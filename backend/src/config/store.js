@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,33 +30,46 @@ const defaultData = {
 };
 
 const loadData = () => {
+  let raw;
   try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
-      if (!parsed.emis) parsed.emis = [];
-      if (!parsed.users) parsed.users = [];
-      if (!parsed.accounts) parsed.accounts = [];
-      if (!parsed.transactions) parsed.transactions = [];
-      return parsed;
-    }
+    if (!fs.existsSync(DATA_FILE)) return structuredClone(defaultData);
+    raw = fs.readFileSync(DATA_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!parsed.emis) parsed.emis = [];
+    if (!parsed.users) parsed.users = [];
+    if (!parsed.accounts) parsed.accounts = [];
+    if (!parsed.transactions) parsed.transactions = [];
+    return parsed;
   } catch (err) {
-    console.error('[Store] Error reading db.json, initializing fresh store:', err);
+    // Keep the unreadable file for recovery instead of silently overwriting it on the next save.
+    if (raw !== undefined) {
+      const aside = `${DATA_FILE}.corrupt-${Date.now()}`;
+      try {
+        fs.renameSync(DATA_FILE, aside);
+        console.error(`[Store] db.json could not be parsed; moved it to ${aside}.`, err.message);
+      } catch (moveErr) {
+        console.error('[Store] db.json could not be parsed or moved aside:', moveErr.message);
+      }
+    } else {
+      console.error('[Store] Error reading db.json:', err.message);
+    }
   }
-  return { ...defaultData };
+  return structuredClone(defaultData);
 };
 
+// Write to a temporary file and rename it over db.json, so a crash mid-write never leaves a
+// half-written file behind.
 const saveData = (data) => {
+  const tmp = `${DATA_FILE}.${process.pid}.tmp`;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, DATA_FILE);
   } catch (err) {
     console.error('[Store] Error writing db.json:', err);
   }
 };
 
-const generateId = () => {
-  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-};
+const generateId = () => randomUUID().replace(/-/g, '').slice(0, 20);
 
 export const memoryStore = {
   // --- USERS ---
@@ -216,6 +230,11 @@ export const memoryStore = {
     return newTx;
   },
 
+  async findTransaction(txId) {
+    const data = loadData();
+    return data.transactions.find((tx) => String(tx._id || tx.id) === String(txId)) || null;
+  },
+
   async updateTransactionCategory(txId, newCategory) {
     const data = loadData();
     const index = data.transactions.findIndex(
@@ -303,7 +322,7 @@ export const memoryStore = {
   },
 
   async resetAll() {
-    saveData({ ...defaultData });
+    saveData(structuredClone(defaultData));
     return true;
   },
 };

@@ -15,16 +15,17 @@ export function EmisPage({ data, actions }) {
     <div className="page">
       <div className="card-head" style={{ marginBottom: 0 }}>
         <div>
-          <h1 className="page-title">EMIs</h1>
-          <p className="page-sub">Loans FinCopilot keeps money aside for.</p>
+          <span className="eyebrow">EMIs</span>
+          <h1 className="page-title">Your loans</h1>
+          <p className="page-sub">FinCopilot keeps money aside for each of these.</p>
         </div>
         <button type="button" className="btn btn-primary btn-sm" onClick={actions.addEmi}>
           <Plus size={18} /> Add EMI
         </button>
       </div>
 
-      <section className="card summary">
-        <div className="summary-label">Total monthly EMIs</div>
+      <section className="card summary frame">
+        <div className="eyebrow">Total EMIs every month</div>
         <div className="summary-value">{inr(monthlyTotal)}</div>
         <div className="summary-stats">
           <div className="summary-stat">
@@ -33,10 +34,10 @@ export function EmisPage({ data, actions }) {
           </div>
           <div className="summary-stat">
             <div className="summary-stat-label">Next due</div>
-            <div className="summary-stat-value">{next ? dueText(next.daysRemaining) : '—'}</div>
+            <div className="summary-stat-value">{next ? dueText(next.daysRemaining, next) : 'None'}</div>
           </div>
           <div className="summary-stat">
-            <div className="summary-stat-label">Still to pay</div>
+            <div className="summary-stat-label">Still to pay this month</div>
             <div className="summary-stat-value">{inr(data.metrics.totalUpcomingEMI)}</div>
           </div>
         </div>
@@ -52,11 +53,11 @@ export function EmisPage({ data, actions }) {
             const installments = Number(emi.remainingInstallments) || 0;
             const total = Number(emi.totalLoanAmount) || 0;
             const paidShare = total > 0 ? Math.min(1, Math.max(0, 1 - (installments * Number(emi.amount)) / total)) : 0;
-            const isUpcoming = emi.status === 'upcoming';
+            const isDue = emi.status === 'upcoming' || emi.status === 'overdue';
             return (
-              <article className="emi" key={emi._id || emi.id}>
+              <article className={`emi ${emi.status === 'overdue' ? 'late' : ''}`} key={emi._id || emi.id}>
                 <div className="emi-top">
-                  <span className="icon-circle" style={{ width: 44, height: 44 }}>
+                  <span className={`icon-circle ${emi.status === 'overdue' ? 'danger' : ''}`}>
                     <HandCoins size={22} strokeWidth={1.8} />
                   </span>
                   <div className="row-main">
@@ -71,6 +72,7 @@ export function EmisPage({ data, actions }) {
                   <div className="emi-amount">{inr(emi.amount)}</div>
                   <span className="muted small">
                     {installments} {installments === 1 ? 'month' : 'months'} left
+                    {total > 0 && ` · ${Math.round(paidShare * 100)}% repaid`}
                   </span>
                 </div>
                 {total > 0 && (
@@ -85,12 +87,12 @@ export function EmisPage({ data, actions }) {
                     aria-label={`Remove ${emi.name}`}
                     onClick={() => actions.removeEmi(emi)}
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={20} />
                   </button>
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
-                    disabled={!isUpcoming}
+                    disabled={!isDue}
                     onClick={() => actions.payEmi(emi)}
                   >
                     {emi.status === 'paid_this_cycle' ? 'Paid' : emi.status === 'closed' ? 'Closed' : `Pay ${inr(emi.amount)}`}

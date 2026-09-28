@@ -17,7 +17,23 @@ const PORT = process.env.PORT || 5000;
 
 // Middlewares
 app.disable('x-powered-by');
-app.use(cors());
+
+// CORS_ORIGIN is a comma-separated allow-list (e.g. https://fincopilot.example.com). Without it,
+// any origin is allowed, which suits local development and the same-origin Vercel setup.
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined));
+
+// Basic security headers for an API that only returns JSON.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  next();
+});
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
@@ -67,10 +83,12 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('[Server Error]', err);
-  res.status(err.status || 500).json({
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error('[Server Error]', err);
+  res.status(status).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    // Client errors (e.g. malformed JSON) are safe to describe; server errors are not.
+    message: status < 500 ? err.message : 'Something went wrong on our side. Please try again.',
   });
 });
 

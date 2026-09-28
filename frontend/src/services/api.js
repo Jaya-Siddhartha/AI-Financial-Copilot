@@ -22,6 +22,8 @@ export const resetDemo = () => data(api.post('/account/reset'));
 
 export const checkBankBalanceApi = ({ userId, upiPin }) => data(api.post('/account/check-balance', { userId, upiPin }));
 
+export const verifyUpiPinApi = ({ userId, upiPin }) => data(api.post('/account/verify-pin', { userId, upiPin }));
+
 export const updateUpiPinApi = ({ userId, oldPin, newPin }) =>
   data(api.post('/account/update-pin', { userId, oldPin, newPin }));
 
@@ -33,9 +35,9 @@ export const receiveMoneyApi = (payload) => data(api.post('/transactions/receive
 
 export const createEMIApi = (payload) => data(api.post('/emi', payload));
 
-export const payEMIApi = (emiId, userId) => data(api.post(`/emi/${emiId}/pay`, { userId }));
+export const payEMIApi = (emiId, userId, upiPin) => data(api.post(`/emi/${emiId}/pay`, { userId, upiPin }));
 
 export const deleteEMIApi = (emiId, userId) => data(api.delete(`/emi/${emiId}`, { params: { userId } }));
 
-export const updateTransactionCategoryApi = (txId, category) =>
-  data(api.patch(`/transactions/${txId}/category`, { category }));
+export const updateTransactionCategoryApi = (txId, category, userId) =>
+  data(api.patch(`/transactions/${txId}/category`, { category, userId }));

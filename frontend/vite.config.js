@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
   },
   build:
     mode === 'demo'
-      ? { outDir: 'dist-demo', rollupOptions: { output: { inlineDynamicImports: true } } }
+      ? { outDir: 'dist-demo', rolldownOptions: { output: { codeSplitting: false } } }
       : undefined,
   server: {
     port: 5173,

@@ -25,6 +25,8 @@ export const simulateSpend = (metrics = {}, extraSpend = 0) => {
     if (balance < emi + expected) status = 'HIGH RISK';
     else if (balance < emi + expected + reserve) status = 'CAUTION';
   }
+  // A late EMI keeps the status at Caution or worse.
+  if (status === 'SAFE' && Number(metrics.overdueCount) > 0) status = 'CAUTION';
 
   return {
     balance,

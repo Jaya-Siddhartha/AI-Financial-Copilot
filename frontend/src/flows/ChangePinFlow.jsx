@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Sheet } from '../components/ui/Sheet';
 import { PinPad } from '../components/ui/PinPad';
 import { Success } from '../components/ui/Success';
-import { updateUpiPinApi } from '../services/api';
+import { updateUpiPinApi, verifyUpiPinApi } from '../services/api';
 import { apiError, bankLabel, bankName } from '../lib/format';
 
-// Three steps: current PIN, new PIN, confirm new PIN.
+// Three steps: current PIN (checked straight away), new PIN, confirm new PIN.
 export function ChangePinFlow({ user, account, onClose }) {
   const [step, setStep] = useState('old');
   const [oldPin, setOldPin] = useState('');
@@ -13,9 +13,33 @@ export function ChangePinFlow({ user, account, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const submitOld = async (pin) => {
+    setBusy(true);
+    setError('');
+    try {
+      await verifyUpiPinApi({ userId: user.id, upiPin: pin });
+      setOldPin(pin);
+      setStep('new');
+    } catch (err) {
+      setError(apiError(err, 'Could not check your PIN.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitNew = (pin) => {
+    if (pin === oldPin) {
+      setError('Choose a new PIN that is different from your current one.');
+      return;
+    }
+    setNewPin(pin);
+    setError('');
+    setStep('confirm');
+  };
+
   const submitConfirm = async (pin) => {
     if (pin !== newPin) {
-      setError('PINs do not match. Enter the new PIN again.');
+      setError('The PINs did not match. Enter the new PIN again.');
       setStep('new');
       return;
     }
@@ -48,32 +72,25 @@ export function ChangePinFlow({ user, account, onClose }) {
     );
   }
 
-  const titles = { old: 'ENTER CURRENT UPI PIN', new: 'ENTER NEW UPI PIN', confirm: 'RE-ENTER NEW UPI PIN' };
+  const titles = {
+    old: 'STEP 1 OF 3 · ENTER YOUR CURRENT PIN',
+    new: 'STEP 2 OF 3 · CHOOSE A NEW PIN',
+    confirm: 'STEP 3 OF 3 · ENTER THE NEW PIN AGAIN',
+  };
+  const handlers = { old: submitOld, new: submitNew, confirm: submitConfirm };
 
   return (
-    <Sheet title="Change UPI PIN" onClose={onClose}>
+    <Sheet title="Change UPI PIN" onClose={onClose} locked={busy}>
       <PinPad
-        key={step}
+        key={`${step}-${error}`}
         title={titles[step]}
         busy={busy}
         error={error}
-        onSubmit={(pin) => {
-          if (step === 'old') {
-            setOldPin(pin);
-            setError('');
-            setStep('new');
-          } else if (step === 'new') {
-            setNewPin(pin);
-            setError('');
-            setStep('confirm');
-          } else {
-            submitConfirm(pin);
-          }
-        }}
+        onSubmit={handlers[step]}
         summary={
           <div className="pin-head">
-            <div style={{ fontWeight: 600 }}>{bankName(account)}</div>
-            <div style={{ fontWeight: 600 }}>{account.accountNumberMasked}</div>
+            <div className="strong">{bankName(account)}</div>
+            <div className="strong">{account.accountNumberMasked}</div>
           </div>
         }
       />

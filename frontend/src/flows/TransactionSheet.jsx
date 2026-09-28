@@ -18,7 +18,7 @@ export function TransactionSheet({ tx, onClose, onUpdated }) {
     setBusy(true);
     setError('');
     try {
-      const res = await updateTransactionCategoryApi(tx._id || tx.id, next);
+      const res = await updateTransactionCategoryApi(tx._id || tx.id, next, tx.userId);
       onUpdated(res.data);
     } catch (err) {
       setCategory(previous);

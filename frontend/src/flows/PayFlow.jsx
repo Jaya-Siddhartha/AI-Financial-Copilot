@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AtSign, ChevronRight, Landmark, Search, Smartphone } from 'lucide-react';
+import { AtSign, ChevronRight, Landmark, Search, ShieldAlert, Smartphone } from 'lucide-react';
 import { Sheet } from '../components/ui/Sheet';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -33,6 +33,7 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [riskAck, setRiskAck] = useState(false);
 
   const balance = Number(metrics.currentBalance) || 0;
   const amountNum = Number(amount) || 0;
@@ -49,6 +50,9 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
     );
   }, [contacts, query]);
 
+  // Someone typed in by number or UPI ID who is not in the contact list: the usual scam pattern.
+  const isNewPayee = Boolean(payee) && !contacts.some((c) => (payee.phone && c.phone === payee.phone) || (payee.upiId && c.upiId === payee.upiId));
+
   const choosePayee = (next) => {
     setPayee(next);
     setError('');
@@ -64,6 +68,7 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
 
   const impact = amountNum > 0 ? simulateSpend(metrics, amountNum) : null;
   const nextEmi = metrics.nextEMI;
+  const risky = Boolean(impact && nextEmi && impact.status === 'HIGH RISK');
 
   const submitPin = async (pin) => {
     setBusy(true);
@@ -122,7 +127,7 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
 
   if (step === 'pin') {
     return (
-      <Sheet title={bankName(account)} onClose={onClose} onBack={() => setStep('amount')}>
+      <Sheet title={bankName(account)} onClose={onClose} onBack={() => setStep('amount')} locked={busy}>
         <PinPad
           busy={busy}
           error={error}
@@ -131,11 +136,11 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
             <div className="pin-head">
               <div>
                 <div className="muted small">To</div>
-                <div style={{ fontWeight: 600 }}>{payeeLabel(payee)}</div>
+                <div className="strong">{payeeLabel(payee)}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div className="muted small">Sending</div>
-                <div style={{ fontWeight: 700 }}>{inr(amountNum)}</div>
+                <div className="strong">{inr(amountNum)}</div>
               </div>
             </div>
           }
@@ -154,16 +159,25 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
           <button
             type="button"
             className="btn btn-primary btn-block"
-            disabled={amountNum <= 0 || Boolean(amountError)}
+            disabled={amountNum <= 0 || Boolean(amountError) || (risky && !riskAck)}
             onClick={() => {
               setError('');
               setStep('pin');
             }}
           >
-            {amountNum > 0 ? `Pay ${inr(amountNum)}` : 'Enter amount'}
+            {amountNum <= 0 ? 'Enter amount' : risky ? `Pay ${inr(amountNum)} anyway` : `Pay ${inr(amountNum)}`}
           </button>
         }
       >
+        {isNewPayee && (
+          <div className="new-payee" role="note">
+            <ShieldAlert size={20} aria-hidden="true" />
+            <div>
+              <strong>First time paying {payeeLabel(payee)}.</strong> Check the name with the person before you pay. You never need to pay or enter your PIN to receive money.
+            </div>
+          </div>
+        )}
+
         <div className="payee">
           {payee.name ? (
             <Avatar name={payee.name} size={56} />
@@ -193,13 +207,16 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
             value={amount}
             onChange={(e) => {
               const v = e.target.value.replace(/[^0-9.]/g, '');
-              if (/^\d{0,6}(\.\d{0,2})?$/.test(v)) setAmount(v);
+              if (/^\d{0,6}(\.\d{0,2})?$/.test(v)) {
+                setAmount(v);
+                setRiskAck(false);
+              }
             }}
           />
         </label>
         <div className="quick-amounts">
           {QUICK_AMOUNTS.map((q) => (
-            <button key={q} type="button" className="seg" onClick={() => setAmount(String(q))}>
+            <button key={q} type="button" className="seg" onClick={() => { setAmount(String(q)); setRiskAck(false); }}>
               {inr(q)}
             </button>
           ))}
@@ -218,19 +235,26 @@ export function PayFlow({ contacts, initialPayee, mode, user, account, metrics, 
         ) : impact && impact.status !== 'SAFE' && nextEmi ? (
           <Alert tone={impact.status === 'HIGH RISK' ? 'red' : 'amber'}>
             {impact.status === 'HIGH RISK'
-              ? `After this payment you may fall short by ${inr(impact.shortfall)} for your ${nextEmi.name} EMI of ${inr(nextEmi.amount)} due ${dueText(nextEmi.daysRemaining)}.`
-              : `This leaves only a thin buffer before your ${nextEmi.name} EMI due ${dueText(nextEmi.daysRemaining)}.`}
+              ? `After this payment you may be ${inr(impact.shortfall)} short for your ${nextEmi.name} EMI of ${inr(nextEmi.amount)}, due ${dueText(nextEmi.daysRemaining, nextEmi)}.`
+              : `This leaves very little spare before your ${nextEmi.name} EMI, due ${dueText(nextEmi.daysRemaining, nextEmi)}.`}
           </Alert>
         ) : impact ? (
           <Alert tone="green">Safe to pay. You can still spend {inr(impact.safeToSpend)} after this.</Alert>
         ) : null}
+
+        {risky && !amountError && (
+          <label className="ack">
+            <input type="checkbox" checked={riskAck} onChange={(e) => setRiskAck(e.target.checked)} />
+            <span>I understand this payment could leave me short for my EMI.</span>
+          </label>
+        )}
 
         <div className="source" style={{ marginTop: 12 }}>
           <span className="icon-circle" style={{ width: 36, height: 36 }}>
             <Landmark size={18} />
           </span>
           <div className="row-main">
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{bankLabel(account)}</div>
+            <div className="strong">{bankLabel(account)}</div>
             <div className="row-sub">Balance {inr(balance)}</div>
           </div>
         </div>

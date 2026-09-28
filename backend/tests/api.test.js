@@ -127,14 +127,14 @@ test('demo scenario: payments, balance checks, EMIs and risk status', async () =
 
   // 14. Paying an EMI marks it paid and records an "EMI & Loans" debit
   const emiId = s.emis[0]._id;
-  const paid = await call('POST', `/emi/${emiId}/pay`, { userId: 'user_siddhartha' });
+  const paid = await call('POST', `/emi/${emiId}/pay`, { userId: 'user_siddhartha', upiPin: '1234' });
   assert.equal(paid.status, 200);
   assert.equal(paid.body.data.transaction.category, 'EMI & Loans');
   s = await dashboard('user_siddhartha');
   assert.equal(s.emis.find((e) => e._id === emiId).status, 'paid_this_cycle');
 
   // Paying the same EMI twice in one cycle is refused
-  assert.equal((await call('POST', `/emi/${emiId}/pay`, { userId: 'user_siddhartha' })).status, 400);
+  assert.equal((await call('POST', `/emi/${emiId}/pay`, { userId: 'user_siddhartha', upiPin: '1234' })).status, 400);
 
   // 15. Reset restores the demo
   await reset();
@@ -209,8 +209,8 @@ test('transaction categories are limited to the known list', async () => {
   await reset();
   const [tx] = (await call('GET', '/transactions?userId=user_rahul&limit=1')).body.data;
   assert.equal(tx._id, tx.id);
-  assert.equal((await call('PATCH', `/transactions/${tx._id}/category`, { category: '<b>x</b>' })).status, 400);
-  const ok = await call('PATCH', `/transactions/${tx._id}/category`, { category: 'Shopping & Lifestyle' });
+  assert.equal((await call('PATCH', `/transactions/${tx._id}/category`, { userId: 'user_rahul', category: '<b>x</b>' })).status, 400);
+  const ok = await call('PATCH', `/transactions/${tx._id}/category`, { userId: 'user_rahul', category: 'Shopping & Lifestyle' });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.data.category, 'Shopping & Lifestyle');
 });
@@ -243,4 +243,48 @@ test('the affordability simulator predicts the dashboard after a real payment', 
     assert.equal(predicted.safeToSpend, after.safeToSpend, `safe-to-spend after paying ${amount}`);
     assert.equal(predicted.dailyBurnRate, after.dailyBurnRate, `burn rate after paying ${amount}`);
   }
+});
+
+test('EMI payments require the UPI PIN', async () => {
+  await reset();
+  const [emi] = (await call('GET', '/emi?userId=user_siddhartha')).body.data;
+  const before = (await dashboard('user_siddhartha')).metrics.currentBalance;
+  assert.equal((await call('POST', `/emi/${emi._id}/pay`, { userId: 'user_siddhartha' })).status, 400);
+  assert.equal((await call('POST', `/emi/${emi._id}/pay`, { userId: 'user_siddhartha', upiPin: '0000' })).status, 400);
+  assert.equal((await dashboard('user_siddhartha')).metrics.currentBalance, before, 'no money moved without the PIN');
+  assert.equal((await call('POST', `/emi/${emi._id}/pay`, { userId: 'user_siddhartha', upiPin: '1234' })).status, 200);
+});
+
+test('only the owner can change a transaction category', async () => {
+  await reset();
+  const [tx] = (await call('GET', '/transactions?userId=user_rahul&limit=1')).body.data;
+  const body = { category: 'Shopping & Lifestyle' };
+  assert.equal((await call('PATCH', `/transactions/${tx._id}/category`, body)).status, 404);
+  assert.equal((await call('PATCH', `/transactions/${tx._id}/category`, { ...body, userId: 'user_siddhartha' })).status, 404);
+  assert.equal((await call('PATCH', `/transactions/${tx._id}/category`, { ...body, userId: 'user_rahul' })).status, 200);
+});
+
+test('the current PIN can be verified and a new PIN must differ from it', async () => {
+  await reset();
+  assert.equal((await call('POST', '/account/verify-pin', { userId: 'user_rahul', upiPin: '1234' })).status, 200);
+  assert.equal((await call('POST', '/account/verify-pin', { userId: 'user_rahul', upiPin: '9999' })).status, 400);
+  const same = await call('POST', '/account/update-pin', { userId: 'user_rahul', oldPin: '1234', newPin: '1234' });
+  assert.equal(same.status, 400);
+});
+
+test('text inputs are capped and enums are checked', async () => {
+  await reset();
+  const long = await call('POST', '/emi', { userId: 'user_rahul', name: 'A'.repeat(500), amount: 500, dueDay: 3 });
+  assert.equal(long.status, 201);
+  assert.equal(long.body.data.name.length, 60);
+  assert.equal((await call('POST', '/emi', { userId: 'user_rahul', name: 'X', amount: 500, dueDay: 3, frequency: 'Hourly' })).status, 400);
+  const credit = await call('POST', '/transactions/receive', { userId: 'user_rahul', amount: 10, senderName: 'x', paymentMethod: '<b>hax</b>' });
+  assert.equal(credit.body.data.transaction.paymentMethod, 'UPI');
+});
+
+test('responses carry basic security headers', async () => {
+  if (process.env.API_URL) return; // headers are a property of the Express server only
+  const res = await fetch(`${baseUrl}/health`);
+  assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(res.headers.get('x-frame-options'), 'DENY');
 });

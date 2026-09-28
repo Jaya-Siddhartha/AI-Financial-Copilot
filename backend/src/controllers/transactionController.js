@@ -4,6 +4,9 @@ import { CATEGORIES, CATEGORY_LIST } from '../config/categories.js';
 // NPCI's standard per-transaction limit for person-to-person UPI payments.
 export const MAX_UPI_AMOUNT = 100000;
 const MAX_RECEIVE_AMOUNT = 1000000;
+const PAYMENT_METHODS = ['UPI', 'Direct Bank Transfer', 'Card', 'Cash'];
+const cleanMethod = (value) => (PAYMENT_METHODS.includes(value) ? value : 'UPI');
+const cleanText = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
 
 // Returns the amount rounded to paise, or null if it is not a positive number.
 const parseAmount = (value) => {
@@ -103,8 +106,8 @@ export const makePayment = async (req, res) => {
     }
 
     // Recipient name resolution
-    const cleanUpi = typeof recipientUpi === 'string' ? recipientUpi.trim() : '';
-    const cleanName = typeof recipientName === 'string' ? recipientName.trim() : '';
+    const cleanUpi = cleanText(recipientUpi, 60);
+    const cleanName = cleanText(recipientName, 60);
     const finalRecipient = cleanName || cleanUpi || (digitsOnly ? `+91 ${digitsOnly}` : '');
 
     if (!cleanUpi && !digitsOnly && !cleanName) {
@@ -122,7 +125,7 @@ export const makePayment = async (req, res) => {
       amount: amountNum,
       upiPin,
       note: typeof note === 'string' ? note.trim().slice(0, 120) : '',
-      paymentMethod: paymentMethod || 'UPI',
+      paymentMethod: cleanMethod(paymentMethod),
     });
 
     return res.status(201).json({
@@ -173,7 +176,7 @@ export const receiveMoney = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Amount is too large for a single credit.' });
     }
 
-    const sender = (typeof senderName === 'string' && senderName.trim()) || 'Sender';
+    const sender = cleanText(senderName, 60) || 'Sender';
     const cleanNote = typeof note === 'string' ? note.trim().slice(0, 120) : '';
 
     const newTx = await dataService.addTransaction({
@@ -184,9 +187,9 @@ export const receiveMoney = async (req, res) => {
       category: CATEGORY_LIST.includes(category) ? category : CATEGORIES.OTHER,
       type: 'credit',
       amount: amountNum,
-      description: cleanNote || `Received via ${paymentMethod}`,
+      description: cleanNote || `Received via ${cleanMethod(paymentMethod)}`,
       status: 'completed',
-      paymentMethod: paymentMethod,
+      paymentMethod: cleanMethod(paymentMethod),
       date: new Date().toISOString(),
     });
 
@@ -214,10 +217,16 @@ export const receiveMoney = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { category } = req.body;
+    const { category, userId } = req.body;
 
     if (!CATEGORY_LIST.includes(category)) {
       return res.status(400).json({ success: false, message: 'Choose a valid category.' });
+    }
+
+    // Only the owner of a transaction may change it.
+    const existing = userId ? await dataService.getTransactionById(id) : null;
+    if (!existing || String(existing.userId) !== String(userId)) {
+      return res.status(404).json({ success: false, message: 'Transaction not found.' });
     }
 
     const updated = await dataService.updateTransactionCategory(id, category);

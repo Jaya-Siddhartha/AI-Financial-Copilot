@@ -153,6 +153,13 @@ export const dataService = {
     return await memoryStore.createTransaction(txData);
   },
 
+  async getTransactionById(txId) {
+    if (isMongooseConnected) {
+      return await Transaction.findById(txId).lean();
+    }
+    return await memoryStore.findTransaction(txId);
+  },
+
   async updateTransactionCategory(txId, category) {
     if (isMongooseConnected) {
       return await Transaction.findByIdAndUpdate(txId, { category }, { new: true });
@@ -192,7 +199,11 @@ export const dataService = {
       throw httpError(400, 'Enter your 4-digit UPI PIN.');
     }
 
-    if (pin !== String(user.upiPin || '1234')) {
+    if (!user.upiPin) {
+      throw httpError(403, 'No UPI PIN is set for this account.');
+    }
+
+    if (pin !== String(user.upiPin)) {
       const attempts = (Number(user.pinFailedAttempts) || 0) + 1;
       if (attempts >= MAX_PIN_ATTEMPTS) {
         await this.updateUser(userId, {
@@ -333,6 +344,9 @@ export const dataService = {
     const next = String(newPin ?? '').trim();
     if (!/^\d{4}$/.test(next)) {
       throw httpError(400, 'New UPI PIN must be exactly 4 digits.');
+    }
+    if (next === String(user.upiPin)) {
+      throw httpError(400, 'Choose a new UPI PIN that is different from the current one.');
     }
 
     await this.updateUser(idOf(user), { upiPin: next });

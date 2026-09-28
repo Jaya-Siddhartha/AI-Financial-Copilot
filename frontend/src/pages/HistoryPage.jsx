@@ -13,7 +13,12 @@ const TYPES = [
 ];
 
 const toCsv = (rows) => {
-  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Quote every cell, and stop spreadsheet apps from running cells that look like formulas.
+  const escape = (v) => {
+    let text = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
   const header = ['Date', 'Description', 'Party', 'Category', 'Type', 'Amount', 'Method', 'Transaction ID'];
   const lines = rows.map((t) =>
     [new Date(t.date).toISOString(), t.title, t.merchant, t.category, t.type, t.amount, t.paymentMethod, t._id || t.id]
@@ -81,12 +86,13 @@ export function HistoryPage({ userId, refreshKey, actions }) {
     <div className="page">
       <div className="card-head" style={{ marginBottom: 0 }}>
         <div>
-          <h1 className="page-title">History</h1>
-          <p className="page-sub">All payments and credits on this account.</p>
+          <span className="eyebrow">History</span>
+          <h1 className="page-title">All payments</h1>
+          <p className="page-sub">Money sent and received on this account.</p>
         </div>
         {!__BROWSER_DEMO__ && (
           <button type="button" className="btn btn-outline btn-sm" onClick={download} disabled={transactions.length === 0}>
-            <Download size={16} /> Statement
+            <Download size={18} /> Download statement
           </button>
         )}
       </div>
@@ -119,7 +125,7 @@ export function HistoryPage({ userId, refreshKey, actions }) {
           </div>
           <select
             className="input"
-            style={{ height: 34, width: 'auto', fontSize: 13, borderRadius: 999, padding: '0 12px' }}
+            style={{ width: 'auto' }}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             aria-label="Filter by category"

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend
+        run: npm ci
+        working-directory: backend
+
+      - name: Backend tests (API + engine)
+        run: npm test
+        working-directory: backend
+
+      - name: Install frontend
+        run: npm ci
+        working-directory: frontend
+
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Standalone demo build
+        run: npm run build:demo
+        working-directory: frontend
+
+      - name: API tests against the in-browser demo API
+        run: |
+          node frontend/scripts/serve-browser-api.mjs 5055 &
+          sleep 2
+          API_URL=http://127.0.0.1:5055/api node --test backend/tests/api.test.js

@@ -149,6 +149,7 @@ export const getDashboardData = async (req, res) => {
           totalUpcomingEMI: analysis.totalUpcomingEMI,
           nextEMI: analysis.nextEMI,
           riskStatus: analysis.riskStatus,
+          overdueCount: analysis.overdueCount,
           dailyBurnRate: analysis.dailyBurnRate,
           discretionarySpend: analysis.discretionarySpend,
           expectedNormalExpenses: analysis.expectedNormalExpenses,
@@ -214,6 +215,22 @@ export const checkBankBalance = async (req, res) => {
   } catch (error) {
     if (!error.status) console.error('[accountController] checkBankBalance error:', error);
     return res.status(error.status || 500).json({ success: false, message: error.message || 'Balance verification failed.' });
+  }
+};
+
+// Verify the current UPI PIN (first step of changing it). Wrong entries count towards the lockout.
+export const verifyUpiPin = async (req, res) => {
+  try {
+    const { userId, upiPin } = req.body;
+    const user = userId ? await dataService.getUserById(userId) : null;
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+    await dataService.assertUpiPin(user, upiPin, 'Current UPI PIN is incorrect.');
+    return res.status(200).json({ success: true, message: 'UPI PIN verified.' });
+  } catch (error) {
+    if (!error.status) console.error('[accountController] verifyUpiPin error:', error);
+    return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Could not verify the PIN.' });
   }
 };
 

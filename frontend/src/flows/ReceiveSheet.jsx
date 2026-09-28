@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Copy } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Sheet } from '../components/ui/Sheet';
 import { Avatar } from '../components/ui/Avatar';
 import { Alert } from '../components/ui/Alert';
@@ -21,6 +22,15 @@ export function ReceiveSheet({ user, onClose, onReceived, notify }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [qr, setQr] = useState('');
+
+  // A standard UPI payment link, as used by every UPI app's "My QR".
+  useEffect(() => {
+    const link = `upi://pay?pa=${encodeURIComponent(user.upiId)}&pn=${encodeURIComponent(user.fullName || user.name)}&cu=INR`;
+    QRCode.toDataURL(link, { margin: 1, width: 480, errorCorrectionLevel: 'M', color: { dark: '#070907', light: '#ffffff' } })
+      .then(setQr)
+      .catch(() => setQr(''));
+  }, [user.upiId, user.fullName, user.name]);
 
   const copyUpiId = async () => {
     try {
@@ -86,18 +96,25 @@ export function ReceiveSheet({ user, onClose, onReceived, notify }) {
         </button>
       }
     >
-      <div className="card" style={{ background: 'var(--surface-2)', boxShadow: 'none', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Avatar name={user.name} size={44} />
-        <div className="row-main">
-          <div className="row-sub">Your UPI ID</div>
-          <div style={{ fontWeight: 600 }}>{user.upiId}</div>
+      <div className="myqr">
+        <div className="eyebrow">My QR</div>
+        <div className="qr-frame frame">
+          {qr ? <img src={qr} alt={`QR code to pay ${user.fullName || user.name} at ${user.upiId}`} /> : <div className="qr-placeholder" />}
         </div>
-        <button type="button" className="btn btn-soft btn-sm" onClick={copyUpiId}>
-          <Copy size={16} /> Copy
-        </button>
+        <div className="myqr-id">
+          <Avatar name={user.name} size={40} />
+          <div className="row-main">
+            <div className="row-sub">Show this code, or share your UPI ID</div>
+            <div className="strong">{user.upiId}</div>
+          </div>
+          <button type="button" className="btn btn-soft btn-sm" onClick={copyUpiId}>
+            <Copy size={16} /> Copy
+          </button>
+        </div>
+        <p className="muted small">Demo UPI ID. Real UPI apps cannot pay it.</p>
       </div>
 
-      <div className="month-label">Simulate an incoming payment</div>
+      <div className="month-label">Try it: add a pretend incoming payment</div>
       <form id="receive-form" onSubmit={submit}>
         <div className="field">
           <label className="field-label" htmlFor="rcv-from">From</label>

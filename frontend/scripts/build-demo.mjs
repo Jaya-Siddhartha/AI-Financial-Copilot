@@ -3,8 +3,9 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'dist-demo');
 
 execSync('npx vite build --mode demo', { cwd: root, stdio: 'inherit' });
@@ -20,6 +21,8 @@ const head = html.match(/<head>([\s\S]*?)<\/head>/)[1]
   .replace(/<meta charset[^>]*>/, '')
   .replace(/<meta name="viewport"[^>]*>/, '')
   .replace(/<link rel="stylesheet"[^>]*>/, '')
+  // The manifest and touch icon are served files, which a single-page demo does not have.
+  .replace(/<link rel="(manifest|apple-touch-icon)"[^>]*>/g, '')
   .replace(/<script type="module"[^>]*><\/script>/, '')
   .replace('<title>FinCopilot</title>', '<title>FinCopilot Demo</title>')
   .trim();

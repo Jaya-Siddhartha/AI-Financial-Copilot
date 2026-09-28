@@ -1,306 +1,295 @@
-# FinCopilot: Audit Report
+# FinCopilot: Full Project Audit
 
-**Date:** 27 September 2026 (last updated 28 September 2026)
-**Scope:** entire repository (`backend/`, `frontend/`, `api/`, deployment config, docs, tests)
-**Baseline audited:** commit `481da7d` (main)
+**Date:** 28 September 2026
+**Baseline audited:** commit `19a3aaf` (`main`)
+**Scope:** every tracked file: `backend/`, `frontend/`, `api/`, `vercel.json`, docs, tests and dependencies
+**Audited by:** a full read of the source (about 7,000 lines), a live run of the app, targeted API probes, the test suite, a production build and dependency scans
+
+---
+
+## Contents
+
+1. [Summary](#1-summary)
+2. [How the audit was done](#2-how-the-audit-was-done)
+3. [How the project is built](#3-how-the-project-is-built)
+4. [Findings](#4-findings)
+   - 4.1 [Security and access control](#41-security-and-access-control)
+   - 4.2 [Money movement and data integrity](#42-money-movement-and-data-integrity)
+   - 4.3 [The financial engine (safe to spend)](#43-the-financial-engine-safe-to-spend)
+   - 4.4 [User experience](#44-user-experience)
+   - 4.5 [Accessibility](#45-accessibility)
+   - 4.6 [Engineering, tests and deployment](#46-engineering-tests-and-deployment)
+5. [What already works well](#5-what-already-works-well)
+6. [Verification results](#6-verification-results)
+7. [Fix plan and status](#7-fix-plan-and-status)
+8. [Changes made after this audit](#8-changes-made-after-this-audit)
 
 ---
 
 ## 1. Summary
 
-FinCopilot's core idea works: two simulated UPI accounts, PIN-authorised payments between them, a balance "check" that sets a verified baseline, EMI tracking, and a deterministic safe-to-spend engine that classifies each account as SAFE, CAUTION or HIGH RISK. The original 15-scenario test script passed.
+FinCopilot is a demo UPI wallet with one idea no mainstream payment app offers: before you pay, it tells you whether you can still cover your upcoming EMIs. The idea works. The engine is deterministic and explainable, the 13 API tests pass, the production build is clean, and the earlier audit's high-severity bugs (payments without a PIN, PIN brute force, broken MongoDB mode, fake forecasts) are really fixed.
 
-Under that happy path, though, the audit found **real defects**:
+This audit found **46 issues** (4 High, 20 Medium, 22 Low). None of them crash the app in normal use. The important ones are:
 
-- **Payments went through without any UPI PIN.** The PIN was only checked if the client sent one.
-- **Unlimited PIN guessing.** 20 wrong PINs in a row were all accepted as ordinary errors.
-- **MongoDB mode was broken.** Payments, balance checks and PIN changes always wrote to the local JSON file, even when MongoDB was configured. On Vercel the DB connection was never opened at all.
-- **The Insights page showed made-up numbers.** Its 30/60/90-day forecast used hard-coded values (`balance − 15,000` and so on) because of a data-shape bug.
-- **Several EMI bugs.** A paid EMI never became due again, the same EMI could be paid twice, and EMI payments were filed under a category that doesn't exist.
-- **The "Can I afford it?" answer was contradicted after paying.** A ₹20,000 purchase was predicted Safe, then shown as At risk once paid.
+| Area | Most serious finding |
+|---|---|
+| Security | **EMI payments move money without a UPI PIN** (S3), even though the app says "every payment needs your UPI PIN". Any caller can also change another user's transaction category (S4) and credit any amount to any account (S2). |
+| Data integrity | A transfer is four separate writes with nothing tying them together (B1). If the process stops between the debit and the credit, money disappears. A half-written `db.json` is silently replaced by an empty store (B2). |
+| Engine | The daily-spending rate uses the last 100 transactions whatever their dates (E1), the 30/60/90-day outlook hides deficits by rounding them up to ₹0 (E2), and a missed EMI simply shows "Due in 29 days" (E5). |
+| Usability | Text is fixed in pixels, with 23 styles at 11–13 px (A1). Grey helper text fails contrast (A2). Charts are hard to read (U4). There is no dark theme, no text-size control and no plain-language help for new users (U1–U3). |
+| Tooling | The dev server restarts on every payment because `nodemon` watches the data file (B3). The frontend's Vite version has a published advisory (S13). |
 
-All of these are fixed. The UI was rebuilt in a clean, mobile-first payment-app style (the layout pattern of apps like PhonePe), with no change to the product concept, the demo accounts or the API contract. Dead code, unused dependencies, committed runtime data and outdated docs were removed. A browser-only build of the app was added so it can be tried without a server (§7).
-
-**Verdict:** working and verified locally, both through the API test suite and in a real browser on mobile and desktop. See §8 for what could **not** be done from this session: pushing to GitHub and deploying.
+**Verdict:** a solid demo with a clear idea and honest numbers, but not safe for real users yet. **Authentication (S1) remains the one blocker** before real money is involved. Every other finding has a small, local fix. §8 lists what was fixed in the same working session: 31 findings fixed, 2 partly.
 
 ---
 
-## 2. What was checked, and how
+## 2. How the audit was done
 
 | Check | Method | Result |
 |---|---|---|
-| Dependencies install | `npm install` in `backend/`, `frontend/`, root | OK |
-| Original test script (15 scenarios) | Ran against a live local server | 15/15 passed (baseline) |
-| Suspected defects | Targeted `curl` requests against the running API | 8 confirmed (see §3) |
-| New API test suite | `cd backend && npm test` (13 tests, node:test) | **13/13 pass** |
-| Prediction engine scenarios | Formula recomputed by hand, SAFE → CAUTION → HIGH RISK → SAFE walk, simulator vs real payment at 6 amounts, 7-day and 30/60/90-day math | **25/25 pass** (after fix F11) |
-| Frontend production build | `cd frontend && npm run build` | OK: 263 kB JS / 84 kB gzipped, 18 kB CSS |
-| Full UI walkthrough | Playwright + Chromium, 390×844 phone and 1440×900 desktop | All flows pass (§5) |
-| Layout at small width | 360 px viewport, every tab | No horizontal overflow |
-| Browser console | During the whole walkthrough | No app errors. The only messages were a wrong-PIN 400 (intended) and Google Fonts blocked by the sandbox proxy |
-| Browser-only demo | Same 13 API tests and 25 engine checks run against the in-page API; full walkthrough on the standalone page with no server | **13/13, 25/25, all flows pass** (§7) |
-| Dependency advisories | `npm audit` | Backend fixed to 0; frontend dev-server advisory open (R8) |
-| Live deployment | `curl https://fincopilot-upi.vercel.app` | **Not reachable from this environment** (network policy) |
+| Source review | Every file under `backend/src`, `frontend/src`, `api/`, config and docs was read in full | 46 findings (§4) |
+| Install | `npm install` in root, `backend/`, `frontend/` on Node 22.23 | OK |
+| Run locally | `npm run dev` (Express on :5000, Vite on :5173), then used in the browser | Works. Dev server restarted itself after data writes (B3) |
+| API probes | 8 targeted `curl` requests against the running server | 7 defects confirmed (S2, S3, S4, S6, S7, S9, B3) |
+| API test suite | `cd backend && npm test` (node:test, 13 tests) | **13/13 pass** |
+| Production build | `cd frontend && npm run build` | OK: 264 kB JS (84 kB gzipped), 18 kB CSS |
+| Dependency advisories | `npm audit` in both packages | Backend 0. Frontend 2 (esbuild/vite dev server, S13) |
+| Outdated packages | `npm outdated` | React 18 → 19, Vite 5 → 8, Express 4 → 5, Mongoose 8 → 9 available |
+| Contrast | WCAG ratio computed for every text colour token | `--text-3` is 3.42:1 on white, 3.06:1 on the page background (fails AA, A2) |
+| Market comparison | Web research on 2026 UPI features, fintech UX and designing for older users | See [UPGRADES.md](UPGRADES.md) |
+
+**Evidence for the confirmed API defects** (all against a fresh reset):
+
+```text
+1) POST /emi/:id/pay            {"userId":"user_siddhartha"}                      → success, ₹20,000 debited, no PIN
+2) PATCH /transactions/:id/category (Rahul's tx, no userId)                       → success
+3) POST /transactions/receive   {"userId":"user_rahul","amount":999999, ...}      → success, ₹9,99,999 credited
+4) GET /account/dashboard?userId=user_rahul                                       → full data for another user
+5) POST /account/update-pin     {"oldPin":"1234","newPin":"1234"}                 → success (PIN "changed" to itself)
+6) POST /emi                    {"name":"A"×3000,"frequency":"Hourly",...}        → success
+8) GET /api/health                                                                → Access-Control-Allow-Origin: *, no security headers
+   next request after a write                                                     → curl exit 56 (server restarting, B3)
+```
 
 ---
 
-## 3. Findings
+## 3. How the project is built
 
-Severity: **High** means money, security or data integrity. **Medium** means wrong numbers or crashes. **Low** means hygiene or UX.
+```text
+Browser (React 18 + Vite 5)                      Express 4 API (Node 22)                  Storage
+┌────────────────────────────┐   /api/*   ┌──────────────────────────────┐   ┌────────────────────────┐
+│ App.jsx (tabs + sheets)    │ ─────────► │ routes → controllers         │   │ MongoDB (if MONGODB_URI)│
+│ pages/  Home Insights EMIs │  axios     │ dataService (store switch)   │ ─►│   or                    │
+│         History Profile    │            │ financialEngine (pure)       │   │ backend/data/db.json    │
+│ flows/  Pay PIN Balance …  │ ◄───────── │ seedService / seedData       │   │ (/tmp on Vercel)        │
+│ lib/affordability (mirror) │   JSON     └──────────────────────────────┘   └────────────────────────┘
+└────────────────────────────┘
+            │ demo build only
+            ▼
+ services/browserApi.js: the same API answered inside the page (localStorage), reusing
+ the backend engine, categories and seed data.
+```
 
-### 3.1 Backend
-
-| # | Sev | Finding | Evidence | Status |
-|---|---|---|---|---|
-| B1 | High | A payment with no `upiPin` field succeeded and moved money. | `POST /transactions/payment` without PIN returned `success: true` | **Fixed.** PIN is required and must be 4 digits |
-| B2 | High | No limit on wrong PIN attempts, so a 4-digit PIN could be brute-forced (10,000 tries). | 20 wrong attempts, all plain `400` | **Fixed.** 3 wrong attempts lock the PIN for 5 minutes (`423`), a correct PIN resets the counter, and Reset Demo clears it |
-| B3 | High | Transfers, balance verification and PIN change always used the JSON file store, even with `MONGODB_URI` set. Reads came from MongoDB and writes went to the file, so balances diverged. | `dataService.transferBetweenAccounts` called `memoryStore` directly | **Fixed.** These now go through `dataService` and work on both stores |
-| B4 | High | With the Vercel `services` entrypoint (`backend/src/server.js`), `connectDB()` was never called, so MongoDB could never be used in production. | `startServer()` is skipped when `VERCEL` is set | **Fixed.** `/api` middleware opens the cached connection on the first request |
-| B5 | High | Any caller could delete any user's EMI by ID. | `DELETE /emi/emi_rahul_1` removed Rahul's EMI with no user check | **Fixed.** Ownership is checked; 404 otherwise |
-| B6 | High | No authentication: any client can act as any `userId`. | By design for the demo | **Open.** See UPGRADES.md §2 (P0) |
-| B7 | Med | Balance updates were read-then-write across `await`s, so concurrent requests could lose updates or overdraw. | `receiveMoney`, `payEMI` | **Fixed.** Atomic `adjustAccountBalance`: MongoDB `$inc` with a `currentBalance ≥ amount` guard; single synchronous step in the file store |
-| B8 | Med | EMI payments were saved with category `"EMI"`, which isn't a real category (`"EMI & Loans"`). They didn't match the category filter. | `payEMI` response | **Fixed** |
-| B9 | Med | An EMI marked paid stayed paid forever. Next month it never came due again. | `status` never reset | **Fixed.** Paid status lasts 25 days after payment, then the EMI is due again. Loans with 0 installments left show as closed |
-| B10 | Med | The same EMI could be paid repeatedly in one cycle. | — | **Fixed.** Returns `400` |
-| B11 | Med | Creating an EMI without a name crashed with a 500. | `Cannot read properties of undefined (reading 'trim')` | **Fixed.** `400` with a clear message |
-| B12 | Med | Every record got two different random IDs (`_id` ≠ `id`). | `generateId()` called twice | **Fixed.** One ID per record |
-| B13 | Med | Recipient matching used substring rules, so any name containing a demo user's name credited that account. | `recipientName.includes(u.name)` | **Fixed.** Exact match on phone, UPI ID, or full name |
-| B14 | Med | MongoDB search passed raw user input as a regex (regex injection / ReDoS). | `$regex: query.search` | **Fixed.** Input escaped |
-| B15 | Med | Any string was accepted as a transaction category. | `PATCH` with `<script>` stored it | **Fixed.** Must be one of the 12 canonical categories |
-| B16 | Med | No sensible amount rules: ₹0.001 was accepted and there was no per-payment cap. | `receive` with `0.001` succeeded | **Fixed.** Rounded to paise; UPI payments capped at ₹1,00,000 (NPCI P2P limit) |
-| B17 | Med | 30/60/90-day forecast subtracted a fixed ₹10,000 rent for everyone. Rahul pays no rent. | `monthlyHousing = 10000` | **Fixed.** Uses rent actually seen in the ledger |
-| B18 | Med | An EMI due today was reported as due in 10 days (`daysRemaining \|\| 10`). | `accountController` | **Fixed** (`??`) |
-| B19 | Low | A due day of 29 to 31 was miscounted in shorter months. | `getDaysUntil` | **Fixed.** Clamped to the month's length |
-| B20 | Low | `limit=abc` returned an unbounded list. | — | **Fixed.** Clamped to 1 to 500 |
-| B21 | Low | Payment errors all returned `400`, even server faults. | — | **Fixed.** Correct status per error |
-| B22 | Low | Importing `server.js` started a listener as a side effect (made testing hard). | — | **Fixed.** Starts only when run directly |
-| B23 | Low | Payment notes were dropped. | — | **Fixed.** Stored as the transaction description |
-
-### 3.2 Frontend
-
-| # | Sev | Finding | Status |
+| Layer | Files | Lines | Notes |
 |---|---|---|---|
-| F1 | High | The Insights forecast cards showed invented numbers (`balance − 15000/28000/42000`, "CAUTION"). It read `horizons.d30` from what is actually an array. | **Fixed.** Real backend forecasts |
-| F2 | Med | The what-if simulator re-implemented the engine using only the 10 most recent transactions, so its numbers disagreed with the dashboard. It also showed a literal `($\Delta$)`; its "Potential EMI Default" branch could never trigger (`safeToSpend` is clamped ≥ 0); and its "EMI Due" badge used a field that doesn't exist. | **Fixed.** `lib/affordability.js` reuses the backend's own metrics |
-| F3 | Med | The payment receipt showed a random `TXN-######` instead of the real transaction ID. | **Fixed** |
-| F4 | Med | Receive Money sent categories that don't exist (`Freelance / Bonus`, `Salary`, `Investments & Savings`, `Other`). | **Fixed** |
-| F5 | Med | The Check Balance header always said "HDFC Bank •••• 4092", because the account was never passed in. | **Fixed** |
-| F6 | Low | Category icons were keyed on names that don't exist, so most rows showed a generic tag icon. | **Fixed** |
-| F7 | Low | Browser `window.confirm` / `alert` dialogs. | **Replaced** with in-app sheets and toasts |
-| F8 | Low | Not usable on phones: fixed 260 px sidebar, a header with six buttons, tables that scroll sideways. | **Rebuilt** mobile-first |
-| F9 | Low | Dead code: `OnboardingModal` (imported, never shown), two placeholder pages, `SpendingChart` (dark-theme leftover with white text on white), `StartPage` marketing page. | **Removed** |
-| F10 | Low | Unused dependencies: `chart.js`, `react-chartjs-2`, `clsx`. | **Removed** |
-| F11 | Med | The "Can I afford it?" simulator and the pay-screen warning disagreed with the dashboard after the payment was made. Example: ₹20,000 was predicted **SAFE (₹4,400 left)** but became **HIGH RISK (₹0)** once paid. The engine adds each payment to the spending behind the daily burn rate; the simulator didn't. | **Fixed.** The simulator now uses the engine's `discretionarySpend` and matches the post-payment dashboard exactly (API test 13) |
+| API entry and config | `server.js`, `config/db.js`, `config/store.js`, `api/index.js` | 500 | Mongo connection is cached for serverless. The JSON store rewrites the whole file on every change |
+| Controllers and routes | 3 controllers, 3 routers | 720 | `userId` comes from the query or body (no sessions) |
+| Services | `dataService.js`, `financialEngine.js`, `seedData.js`, `seedService.js` | 990 | Engine is pure apart from `new Date()` |
+| Models | `User`, `Account`, `Transaction`, `EMI` | 300 | String `_id` so the same IDs work in both stores |
+| Frontend app | `App.jsx`, 5 pages, 9 flows, 8 UI components | 2,150 | No router; tab state and a sheet stack |
+| Frontend logic | `lib/format.js`, `lib/affordability.js`, `services/api.js` | 150 | `affordability.js` mirrors the engine for instant "what if" |
+| Browser demo API | `services/browserApi.js` | 512 | A second copy of the controller logic (B8) |
+| Styles | `styles/index.css` | 1,537 | One hand-written file, CSS variables, light theme only |
+| Tests | `backend/tests/api.test.js` | 246 | 13 end-to-end API tests on a temporary JSON store |
 
-### 3.3 Repository and deployment
+**The core calculation** (`financialEngine.js:146-153`):
 
-| # | Sev | Finding | Status |
-|---|---|---|---|
-| R1 | Med | A backup JSON with user records, **including UPI PINs**, was committed (`backend/backups/`). | **Removed**, and the folder is now git-ignored. It remains in git history |
-| R2 | Low | `backend/data/db.json` was tracked despite `.gitignore`, so every run dirtied the working tree. | **Untracked** |
-| R3 | Low | `frontend/dist/index.html` was committed and pointed at asset files that weren't in the repo. | **Removed** |
-| R4 | Low | Test scripts needed a manually started server and always exited with code 0, even on failure. | **Replaced** by `npm test` (self-contained, fails properly) |
-| R5 | Low | Old reports (`FINCOPILOT_COMPLETE_AUDIT.md`, `FINCOPILOT_UPGRADE_REPORT.md`) linked to local Windows paths (`file:///n:/...`), contained raw LaTeX, and claimed "100% verified". | **Replaced** by this report and UPGRADES.md |
-| R6 | Low | README documented endpoints that don't exist (`POST /api/account/setup`, `POST /api/transactions`). | **Rewritten** |
-| R7 | Med | Backend dependency advisory: `qs` (moderate, 2 advisories) via Express. | **Fixed** (`npm audit fix`, lockfile only) |
-| R8 | Low | Frontend dev-server advisory: `esbuild ≤ 0.24.2` via Vite 5 (affects `npm run dev` only, not the built site). | **Open.** Needs a major Vite upgrade (UPGRADES.md §2, P3) |
+```text
+daily spending   = max(₹300, non-fixed debits in the loaded transactions ÷ 30)
+expected spend   = daily spending × days until the next EMI
+safe to spend    = balance − all unpaid EMIs − expected spend − ₹2,000 buffer   (never below 0)
+status           = HIGH RISK  if balance < EMIs + expected spend
+                   CAUTION    if balance < EMIs + expected spend + buffer
+                   SAFE       otherwise, or if no EMI is unpaid
+```
 
-### 3.4 Still open (by design or out of scope)
+---
 
-| Area | Note |
+## 4. Findings
+
+**Severity.** **High**: money can move or data can be lost or exposed. **Medium**: wrong numbers, misleading UI, or a real barrier for some users. **Low**: hygiene, polish or future risk.
+
+### 4.1 Security and access control
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| S1 | High | **No authentication.** Every endpoint trusts the `userId` in the query or body. Anyone who can reach the API can read or act on any account. | `accountController.js:46,86`, `transactionController.js:17`, probe 4 | Complete account takeover once real users exist | Phone + OTP login with a session. Derive `userId` on the server and ignore it from the client. Needed before any real user (see UPGRADES.md P0) |
+| S2 | High | **`POST /transactions/receive` credits any amount (up to ₹10 lakh) to any account**, with no PIN and no check. | `transactionController.js:146-211`, probe 3 | Anyone can inflate a balance, which also corrupts safe-to-spend | Keep it as a demo simulator only. Put it behind a demo flag and authentication, and cap the amount lower |
+| S3 | High | **EMI payments need no UPI PIN.** `POST /emi/:id/pay` debits the account directly, and the Pay EMI screen has no PIN step, while Profile says "Every payment needs your 4-digit UPI PIN". | `emiController.js:84-156`, `PayEmiSheet.jsx:15-27`, probe 1 | Money leaves the account without the user's approval. The UI makes a false promise | Require and check the PIN (with the same lockout) in the API. Add the PIN pad to the Pay EMI flow |
+| S4 | Medium | **Any transaction's category can be changed by anyone.** No owner check. | `transactionController.js:214-237`, probe 2 | Another user's insights can be manipulated | Require `userId` and check that the transaction belongs to that user; return 404 otherwise |
+| S5 | Medium | UPI PINs are stored in plain text, and if a user has no PIN, `1234` is silently accepted. | `User.js:37-40`, `store.js:88`, `dataService.js:195` | A data leak exposes every PIN | Hash with `scrypt`/`bcrypt`. Remove the `'1234'` fallback in the check. (Real UPI apps never see the PIN at all; see UPGRADES.md) |
+| S6 | Medium | The new PIN may equal the old one. The old PIN is only checked after the user has typed all three PINs. | `dataService.js:327-340`, `ChangePinFlow.jsx:60-72`, probe 5 | "PIN changed" when nothing changed. Users type 12 digits before learning the first 4 were wrong | Reject `newPin === oldPin`. Verify the current PIN first (a verify endpoint), or at least say which step failed |
+| S7 | Medium | CORS allows every origin, and no security headers are sent (`X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`). | `server.js:20`, probe 8 | Any website can script the API from a visitor's browser. The app can be framed (clickjacking) | Allow-list origins through an env var. Add the standard headers (or `helmet`) |
+| S8 | Medium | No rate limit on any endpoint, and `POST /account/reset` is public. | `accountRoutes.js:18` | Anyone can wipe all data in a loop, or flood the JSON store | Rate-limit per IP; restrict reset to demo mode |
+| S9 | Low | No length or value limits on names and enums: a 3,000-character EMI name and `frequency: "Hourly"` are accepted. `paymentMethod` is stored as free text. | `emiController.js:33-71`, `transactionController.js:57-66`, probe 6 | Data pollution and oversized documents. (React escapes output, so this is not XSS) | Trim and cap strings (e.g. 60 chars). Whitelist `frequency` and `paymentMethod` |
+| S10 | Medium | **CSV formula injection in the statement download.** Values are quoted but not neutralised, so a sender named `=HYPERLINK(...)` becomes a live formula in Excel. | `HistoryPage.jsx:15-24` (sender names come from S2) | A crafted name can run a formula when the statement is opened | Prefix cells starting with `= + - @` (and tab/CR) with `'` |
+| S11 | Low | 500 responses return the raw `error.message` (e.g. Mongoose internals). | every controller's `catch` | Leaks internals to callers | Log the detail; return a generic message for unexpected errors |
+| S12 | Low | IDs come from `Math.random()` plus a timestamp. | `store.js:56`, `browserApi.js:26` | Predictable transaction IDs | Use `crypto.randomUUID()` |
+| S13 | Medium | The frontend's Vite 5.4 / esbuild ≤ 0.24.2 has a published advisory: any website can send requests to the dev server and read the responses (GHSA-67mh-4wv8-2f99). | `npm audit` in `frontend/` | Affects developers running `npm run dev`, not the production build | Upgrade Vite (and `@vitejs/plugin-react`) to a fixed major |
+
+### 4.2 Money movement and data integrity
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| B1 | High | **Transfers are not atomic.** Debit sender → write sender's ledger entry → credit recipient → write recipient's entry are four independent writes. EMI payment and receive are the same (two or three writes). | `dataService.js:239-288`, `emiController.js:108-141` | A crash or timeout mid-way leaves money debited but never credited, or a balance without a ledger entry | With MongoDB, use a session transaction (needs a replica set, which Atlas provides). With the JSON store, apply all changes to one loaded object and save once |
+| B2 | Medium | **The JSON store can silently wipe all data.** It reads and rewrites the whole file synchronously on every operation, not atomically. If `db.json` is ever half-written, `loadData()` logs an error and returns an empty store, and the next dashboard request re-seeds the demo. | `store.js:31-54`, `accountController.js:89-92` | Silent data loss after a crash during a write. Every request blocks the event loop while the file is parsed | Write to a temp file and `rename` it over the original. On a parse error, keep the broken file aside instead of starting empty. Long term, use MongoDB only |
+| B3 | Medium | **The dev server restarts on every write.** `nodemon` watches all files, including `backend/data/db.json`, so each payment restarts the API and drops in-flight requests. | `backend/package.json:9`, observed in the dev log and as `curl` exit 56 | Random "Cannot reach the server" errors during local testing | Add a `nodemon.json` that ignores `data/` and `backups/` |
+| B4 | Medium | No idempotency for payments. A retried request on a slow network pays twice. | `transactionController.js:54` | Double payment | Client sends an `Idempotency-Key`; the server stores it and replays the first result |
+| B5 | Low | Recipients are matched by exact name as well as phone/UPI ID, and the first match wins. | `dataService.js:230-237` | With real users, two people with the same name could receive each other's money | Match only on phone number or UPI ID |
+| B6 | Low | API responses invent values when data is missing (mobile `+91 9876543210`, balance `50000`, bank `HDFC Bank`). | `accountController.js:22-28,67-69,121-131` | Hides data problems behind plausible numbers | Return what is stored; let the UI show "unknown" |
+| B7 | Low | `api/index.js` is not used by the current `vercel.json` (which routes `/api` to the `backend` service's `src/server.js`). | `vercel.json:6-9` | Confusion about which entry point runs in production | Delete it, or document which config uses it |
+| B8 | Low | `browserApi.js` re-implements every controller (512 lines). | `frontend/src/services/browserApi.js` | Any rule added to the server must be added twice or the demo drifts | Keep running the API tests against it (already documented). Longer term, share one handler module |
+
+### 4.3 The financial engine (safe to spend)
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| E1 | Medium | **The daily-spending rate ignores dates.** It sums non-fixed debits from the last 100 transactions and divides by 30, even if those transactions span six months. | `financialEngine.js:98-148`, `accountController.js:102` | For long-time users the rate, and so safe-to-spend, is badly wrong (six months of spending read as one) | Only count debits from the last 30 days. Mirror the change in `lib/affordability.js` |
+| E2 | Medium | **The 30/60/90-day outlook hides deficits.** Ending balances below zero are shown as ₹0. Rent is taken from every housing payment loaded, not per month. | `financialEngine.js:233-259` | "₹0 in 60 days" looks fine when the real answer is "₹18,000 short" | Return the signed value and show shortfalls in red. Use last-30-day rent |
+| E3 | Low | The 7-day projection only deducts an EMI when the day-of-month equals `dueDay` exactly. An EMI due on the 31st is never deducted in a 30-day month, even though `getDaysUntil` treats it as due on the 30th. | `financialEngine.js:201-206` vs `:5-15` | Chart and countdown disagree at month end | Clamp `dueDay` to the month's length in the projection too |
+| E4 | Medium | **No "overdue" state.** When an unpaid EMI's due day passes, it just rolls to "Due in 29 days". The model's `overdue` status is never set. | `financialEngine.js:29-62`, `EMI.js:60` | A missed loan payment, which costs penalties and hurts the credit score, disappears from view | If an EMI's due date this month has passed and it was not paid this cycle, mark it **Overdue**, count it as due now, and warn about it first |
+| E5 | Low | Salary is not used in safe-to-spend. Every unpaid EMI is counted even if salary arrives first. | `financialEngine.js:152` | Conservative (safe side) but sometimes too cautious | Document it in the UI now; model a salary-aware timeline later (UPGRADES.md P2) |
+| E6 | Low | The ₹2,000 buffer and ₹300/day floor are fixed for every income level. | `financialEngine.js:148-150` | ₹2,000 is a lot for a ₹15k earner and little for ₹2 lakh | Make the buffer a user setting, defaulting to a share of income |
+| E7 | Low | The engine returns hex colours for the timeline. | `financialEngine.js:272,283` | Presentation inside business logic; breaks theming | Return a type only; colour in the UI |
+
+### 4.4 User experience
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| U1 | Medium | **Jargon without help.** "EMI", "UPI", "cycle", "buffer", "At risk", "Outlook" are never explained. Nothing tells a first-time user what the big number on the home screen means. | `HomePage.jsx`, `InsightsPage.jsx` | Older or first-time users cannot tell what to do. A KPMG India survey (2025) found only 15% of people over 55 use fintech apps regularly, citing complexity and fear of fraud | Plain-language labels ("Money you can spend safely"), a one-line explanation under each figure, and tap-to-explain help |
+| U2 | Medium | Only a light theme. No dark mode, no text-size control. | `index.css:3-37` | Users who need bigger text or darker screens cannot get them | Theme tokens for dark and light, plus a text-size setting stored per device |
+| U3 | Medium | **The pay screen warns but never stops.** A HIGH RISK payment gets a red note, but "Pay" works exactly as for a safe one. There is no warning for a first-time payee. | `PayFlow.jsx:216-226` | The app's key promise (protect my EMI) is easy to miss. Paying new, unknown payees is the main scam pattern NPCI warns about | Ask "Pay anyway?" for HIGH RISK payments. Show a "New payee, check the name" note for people you have never paid |
+| U4 | Medium | **Charts are hard to read.** The 7-day view is CSS bars labelled "43k" with no line for the EMI amount. Categories have no percentages. There is no calendar of what is due when. | `InsightsPage.jsx:15-22,133-173` | The forecast, the product's main visual, does not show where the danger line is | A line/area chart with the EMI line marked, a donut with percentages, and a money calendar (salary and EMIs on dates) |
+| U5 | Low | You can close a payment sheet while it is being processed. Sheets do not trap or restore keyboard focus. | `Sheet.jsx:5-37` | Unclear state after closing mid-payment; keyboard users lose their place | Block closing while busy; move focus into the sheet and back afterwards |
+| U6 | Low | On phones, Profile (switch account, change PIN, reset) is only reachable by tapping the name in the top bar. | `App.jsx:297-316` | Hard to find | Add Profile/More to the bottom bar, or label the avatar button |
+| U7 | Low | No "My QR" to receive money, and the app cannot be installed (no web manifest). | `ReceiveSheet.jsx`, `index.html` | Missing two things every UPI user expects | Show a UPI QR (`upi://pay?pa=…`) in Receive; add a manifest |
+| U8 | Low | The "Can I afford it?" input allows 7 digits but the slider only reaches the balance; above-balance amounts are silently clamped. | `InsightsPage.jsx:10,92` | Typed amount and result disagree without saying so | Say "More than your balance" instead of clamping silently |
+
+### 4.5 Accessibility
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| A1 | Medium | **All text sizes are fixed pixels.** Body is 15 px and 23 rules are 11–13 px. The browser's "larger text" setting is ignored. | `index.css:57`, 23 matches of `font-size: 1[1-3]px` | Hard to read for older users and anyone with low vision (WCAG 1.4.4) | Use `rem` with a 16 px base, no text under 12 px, and a user text-size setting |
+| A2 | Medium | **Helper text fails contrast.** `--text-3` `#8a8a94` is 3.42:1 on white and 3.06:1 on the page background (AA needs 4.5:1). It is used for dates, hints and sub-labels. | `index.css:20` | The small grey text is the hardest to read and carries dates and explanations | Raise all text tokens to at least 4.5:1 |
+| A3 | Low | Charts expose data only through `title` tooltips (mouse only). | `InsightsPage.jsx:135-147` | Screen-reader and touch users cannot read exact values | Add a visually hidden table or per-point labels |
+| A4 | Low | PIN entry progress is not announced (no live region), and the wrong-PIN error is inside a component that re-mounts. | `PinPad.jsx:39-49` | Screen-reader users do not know digits were accepted | `aria-live="polite"` on the progress text |
+
+### 4.6 Engineering, tests and deployment
+
+| # | Sev | Finding | Evidence | Impact | Recommendation |
+|---|---|---|---|---|---|
+| D1 | Medium | No CI. Tests and the build only run when someone remembers. | no `.github/workflows` | Regressions reach `main` unnoticed | A GitHub Actions workflow: backend tests + frontend build on every push and PR |
+| D2 | Low | No frontend tests and no linter config. | `frontend/package.json` | UI regressions (like a broken pay flow) are only caught by hand | Add ESLint and a few component or Playwright smoke tests |
+| D3 | Low | The engine calls `new Date()` itself, so date edge cases (month end, 31st, leap year) cannot be unit tested. | `financialEngine.js:194,225` | Bugs like E3 slip through | Accept `now` as a parameter (default `new Date()`) |
+| D4 | Low | On Vercel without `MONGODB_URI`, data lives in each instance's `/tmp`, so different requests can see different balances. Documented in the README, but not enforced. | `store.js:7-10` | Confusing demo behaviour in production | Show a "demo storage" banner, or refuse to start in production without a database |
+| D5 | Low | Dependencies are one or more majors behind (React 19, Express 5, Mongoose 9, Vite 8). | `npm outdated` | Security fixes and features land only in new majors over time | Plan upgrades one major at a time, after CI exists |
+| D6 | Low | Screenshots in `docs/screenshots` show the old design once the UI changes. | `docs/screenshots/*.png` | README misleads | Retake them with each visual change |
+| D7 | Low | `npm run build:demo` fails on Windows: the script turns `import.meta.url` into `/N:/…` with `URL.pathname`. Found while fixing. | `frontend/scripts/build-demo.mjs:8` | The single-file demo cannot be built on Windows | Use `fileURLToPath` |
+
+---
+
+## 5. What already works well
+
+- **An honest, explainable engine.** Every figure on the Insights page is shown with its formula, and the pay-screen prediction matches the dashboard after a real payment (covered by a test).
+- **Real UPI-style protection on transfers.** A 4-digit PIN is required, three wrong tries lock it for five minutes, and the per-transaction limit is ₹1,00,000, matching NPCI's P2P limit.
+- **Both storage modes work.** Transfers, balance checks and PIN changes go through `dataService` and behave the same on MongoDB and the JSON store, including an atomic "debit only if funds cover it" check.
+- **Useful tests.** 13 end-to-end tests cover the full demo scenario, PIN rules, limits, EMI ownership, category whitelist and the forecast.
+- **A clear, mobile-first UI.** A bottom sheet flow for every action, keyboard support on the PIN pad, `role="alert"` on errors, reduced-motion support and no horizontal scroll down to 360 px.
+- **A zero-server demo.** The browser-only build answers the same API in the page and passes the same tests.
+- **Good docs.** README, CONTRIBUTING, backup and recovery guide, and a roadmap.
+
+---
+
+## 6. Verification results
+
+| Suite | Baseline (`19a3aaf`) | After the fixes |
+|---|---|---|
+| Backend tests (`npm test`) | 13 / 13 API tests | **26 / 26** (18 API + 8 engine) |
+| API tests against the in-browser demo API | 13 / 13 | **18 / 18** |
+| Frontend production build | Passes (Vite 5) | **Passes** (Vite 8): 298 kB JS / 97 kB gzipped, 33 kB CSS |
+| Standalone demo build (`npm run build:demo`) | **Fails on Windows** (D7) | **Passes**: one 352 kB HTML file |
+| `npm audit` backend / frontend | 0 / 2 | **0 / 0** |
+| Live API probes (§2) | 7 defects | Probes 1, 2, 5, 6 and 8 now refused or fixed; 3 and 4 remain by design (S1, S2) |
+| Dev server during writes | Restarted on every payment | No restarts (3 payments in a row, all 201/200) |
+| Contrast (all text tokens, both themes) | `--text-3` 3.06:1 | Lowest is 4.60:1 (light-theme orange on the darkest panel); most are above 7:1 |
+| Browser walkthrough (phone width, in-app browser) | — | Home (Safe and At-risk states), Insights charts, first-time payee + risky payment + PIN + receipt, Pay EMI with wrong then right PIN, My QR, EMIs, Profile, Light theme, Extra-large text, Back button between tabs. Only console errors were proxy 500s while the backend was restarting during edits, and the intended 400 for a wrong PIN |
+
+---
+
+## 7. Fix plan and status
+
+| Status | Findings |
 |---|---|
-| Authentication | None. Any client can use any `userId`. Fine for a public demo, not for real users. |
-| UPI PIN storage | Stored in plain text. Real apps never see the PIN; it is encrypted on-device by NPCI's library and verified by the bank. |
-| Data on Vercel | Without `MONGODB_URI`, data lives in `/tmp` per function instance. Different instances can show different balances, and data resets on cold start. Set `MONGODB_URI` for a stable demo. |
-| CORS | Open to every origin (`cors()`). |
-| Rate limiting | Only the PIN lockout. There is no general request limit. |
-| Burn-rate model | Daily spending = all discretionary debits ÷ 30 (minimum ₹300), with no date window. A one-off purchase is treated as if it repeats daily until the EMI: after a ₹20,000 purchase, "expected daily spending" jumps from ₹3,600 to ₹11,196. The formula was kept unchanged on request. See UPGRADES.md §2 P2 for the fix (dated window, trimmed mean). |
-| Seed data | Siddhartha's seeded balance (₹50,000) doesn't reconcile with the seeded transactions (+₹50,000 salary, −₹18,000 spending). Cosmetic for a demo. |
-| `api/index.js` + root `package.json` deps | Probably unused with the `services` config in `vercel.json`, but left untouched because the deployment couldn't be inspected. |
+| **Fixed** | S3, S4, S6, S7, S9, S10, S12, S13, B2, B3, E1, E2, E3, E4, E7, U1, U2, U3, U4, U5, U6, U7, U8, A1, A2, A3, A4, D1, D3, D6, D7 |
+| **Partly fixed** | S5 (the silent `1234` fallback is gone; PINs are still stored in plain text), S11 (the global handler and the changed endpoints hide internals; other controllers still return `error.message` on 500) |
+| **Open: needed before real users** | S1, S2, S5 (hashing), S8, B1, B4, B5. Designs in [UPGRADES.md](UPGRADES.md) §4 (P0) |
+| **Open: low risk** | B6, B7, B8, E5, E6, D2, D4, D5 |
+
+One new issue was found while fixing: **D7 (Low)** `frontend/scripts/build-demo.mjs` built its working directory from `new URL(import.meta.url).pathname`, which is `/N:/…` on Windows, so `npm run build:demo` failed with `spawnSync cmd.exe ENOENT`. Fixed with `fileURLToPath`.
 
 ---
 
-## 4. Changes made
+## 8. Changes made after this audit
 
-### 4.1 UI/UX redesign
+### Security and data integrity
 
-The whole frontend was rebuilt in the style of a mainstream UPI app: a simple, professional, payment-first layout.
+| # | Change | Where |
+|---|---|---|
+| S3 | `POST /emi/:id/pay` requires the UPI PIN, with the usual 3-try lockout. The Pay EMI sheet gained a PIN step. | `emiController.js`, `PayEmiSheet.jsx`, `browserApi.js` |
+| S4 | Category changes require `userId` and check ownership (404 otherwise). | `transactionController.js`, `dataService.getTransactionById`, `store.findTransaction` |
+| S5 | A user with no PIN is refused (403) instead of accepting `1234`. | `dataService.assertUpiPin` |
+| S6 | New `POST /account/verify-pin`; Change PIN checks the current PIN first; a new PIN equal to the old one is refused. | `accountController.js`, `ChangePinFlow.jsx` |
+| S7 | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy` on every response. `CORS_ORIGIN` allow-list (any origin when unset). | `server.js`, `.env.example` |
+| S9 | Names, lenders and payees capped at 60 characters; `frequency` must be `Monthly`; `paymentMethod` whitelisted; EMI amount and months bounded. | controllers, `browserApi.js` |
+| S10 | CSV cells starting with `= + - @`, tab or CR are prefixed with `'`. | `HistoryPage.jsx` |
+| S11 | The global error handler returns a generic message for 5xx. | `server.js` |
+| S12 | IDs from `crypto.randomUUID()`. | `store.js`, `browserApi.js` |
+| S13 | Vite 5 → 8, `@vitejs/plugin-react` 4 → 6; demo build option renamed for Rolldown. | `frontend/package.json`, `vite.config.js` |
+| B2 | Atomic writes (temp file + rename). An unparsable `db.json` is moved to `db.json.corrupt-<time>` instead of being overwritten. | `store.js` |
+| B3 | `nodemon.json` watches `src/` only. | `backend/nodemon.json` |
 
-- **Layout:** purple top bar with profile and UPI ID. A bottom tab bar on phones (Home, Insights, **Pay**, EMIs, History) and a sidebar on desktop.
-- **Home:** a "Safe to spend" summary card (with Balance, EMIs due and next salary), a *Transfer money* icon grid (To mobile number, To UPI ID, Receive money, Check balance), a *Loans & planning* grid, a *People* row, and the current status, upcoming EMIs and recent transactions.
-- **Pay flow**, the way users expect it: pick a contact or type a number/UPI ID → amount screen with a big centred amount, quick amounts, a note and the paying bank account → **UPI PIN keypad** → success screen with the real transaction ID.
-- **The product's key value is now visible at the moment of payment:** while you type an amount, the pay screen says whether it's safe, whether your buffer gets thin, or exactly how much you'd be short for which EMI.
-- Sheets (bottom sheets on phones, dialogs on desktop) replace browser popups.
-- **Icons:** one set (Lucide) at one stroke weight, in consistent purple tiles. No emojis, no "sparkle"/AI decoration, no gradients.
-- **Copy:** plain language. "At risk" instead of "HIGH RISK Shortfall Warning"; "Safe to spend" instead of "AI Calculated Available Safe-to-Spend".
-- **Accessibility:** labelled inputs, `aria` roles on dialogs, tabs and status, visible focus rings, `prefers-reduced-motion` respected.
-- **New, using existing APIs:** Change UPI PIN (the API existed but had no UI), Remove EMI, CSV statement download, transaction detail sheet.
+### Financial engine
 
-### 4.2 Removed
-
-`frontend/src/components/*` (13 old components), `frontend/src/pages/*` (8 old pages including two placeholders and the start page), `services/predictionEngine.js`, `frontend/dist/`, `chart.js`, `react-chartjs-2`, `clsx`, `backend/test_all_15_cases.js`, `backend/test_e2e.js`, `backend/backups/*.json`, `backend/data/db.json` (untracked), and the two old report files. Frontend source went from about 6,650 lines to about 3,900.
-
-### 4.3 Added
-
-- `backend/tests/api.test.js`: 13 self-contained API tests (`npm test`). Set `API_URL` to run them against another implementation of the API.
-- `backend/src/services/seedData.js`: the demo accounts as plain data, shared by the server seed and the browser demo.
-- `frontend/src/services/browserApi.js`, `frontend/scripts/build-demo.mjs`, `frontend/scripts/serve-browser-api.mjs`: the browser-only demo (§7).
-- `discretionarySpend` in the dashboard `metrics`, so the frontend can predict the daily spending estimate after a payment.
-- `CONTRIBUTING.md`, `UPGRADES.md`, this report, and screenshots in `docs/screenshots/`.
-
-### 4.4 Unchanged, on purpose
-
-The product concept, the two demo accounts and their numbers, demo PIN `1234`, the safe-to-spend formula, the risk tiers, every API route and response shape, the MongoDB and JSON storage options, and `vercel.json`.
-
----
-
-## 5. Verification detail
-
-**API tests** (`backend/tests/api.test.js`, all passing):
-
-1. Health endpoint
-2. Full demo scenario (the original 15 cases): both accounts load; bad mobile number and wrong PIN are rejected; a transfer moves ₹5,000 between the accounts; checking balance sets the baseline; later payments change the estimate but not the baseline; adding an EMI raises obligations; a large payment gives HIGH RISK; receiving money restores SAFE; paying the EMI records an "EMI & Loans" debit and refuses a second payment; reset restores the demo
-3. Payment without a PIN is refused
-4. Negative, non-numeric, over-limit and over-balance amounts are refused
-5. PIN locks after 3 wrong attempts, even the right PIN is refused while locked, and reset clears the lock
-6. A correct PIN clears earlier wrong attempts
-7. UPI PIN can be changed and the new PIN works
-8. An EMI can't be deleted through another user
-9. EMI input validation
-10. Category whitelist, and `_id === id`
-11. A partial-name payment doesn't credit a demo account
-12. The forecast uses rent from the ledger
-13. The affordability simulator predicts status, safe-to-spend and burn rate after a real payment
-
-**Browser walkthrough** (Playwright, Chromium): load home → pay by mobile number (auto-matched to Rahul) with a note → wrong PIN shows "2 attempts left" → correct PIN gives the success screen → a large amount shows the EMI shortfall warning → check balance → receive money → Insights what-if → add EMI → pay EMI → history search and category change → switch to Rahul → change PIN → desktop home, insights, history and pay dialog → 360 px overflow check on every tab.
-
-Screenshots are in `docs/screenshots/`.
-
----
-
-## 6. Prediction engine ("AI") verification
-
-The engine is a fixed formula, not a trained model (see README, *How it works*). It was tested against the running server with a scripted scenario run.
-
-**A. Formula recomputed by hand** (fresh demo data)
-
-| Account | Balance | EMIs due | Daily spending | Days to EMI | Safe to spend | Status | Check |
-|---|---|---|---|---|---|---|---|
-| Siddhartha | ₹50,000 | ₹20,000 | ₹300 | 12 | ₹24,400 | Safe | Pass |
-| Rahul | ₹30,000 | ₹4,000 | ₹300 | 14 | ₹19,800 | Safe | Pass |
-
-**B. Risk levels as Rahul spends** (EMI ₹4,000)
-
-| Step | Balance | Safe to spend | Status | Check |
-|---|---|---|---|---|
-| Start | ₹30,000 | ₹19,800 | Safe | Pass |
-| Pay ₹17,200 | ₹12,800 | ₹0 | Caution | Pass |
-| Pay ₹1,500 more | ₹11,300 | ₹0 | At risk | |
-| Pay ₹5,000 more | ₹6,300 | ₹0 | At risk | Pass |
-| Receive ₹20,000 | ₹26,300 | ₹8,470 | Safe | Pass |
-| Pay the EMI | | ₹11,850 | Safe, nothing due | Pass |
-
-**C. "Can I afford it?" prediction vs the dashboard after actually paying** (Siddhartha, fresh data each time)
-
-| Amount | Before fix F11: predicted | After fix: predicted | Actual after paying | Match after fix |
-|---|---|---|---|---|
-| ₹2,000 | Safe, ₹22,400 | Safe, ₹22,004 | Safe, ₹22,004 | Yes |
-| ₹10,000 | Safe, ₹14,400 | Safe, ₹10,800 | Safe, ₹10,800 | Yes |
-| ₹20,000 | **Safe, ₹4,400** | At risk, ₹0 | At risk, ₹0 | Yes |
-| ₹25,000 | **Caution, ₹0** | At risk, ₹0 | At risk, ₹0 | Yes |
-| ₹30,000 | At risk, ₹0 | At risk, ₹0 | At risk, ₹0 | Yes |
-| ₹38,000 | At risk, ₹0 | At risk, ₹0 | At risk, ₹0 | Yes |
-
-**D. Projections.** The 7-day projection falls by exactly the daily spending estimate each day (plus any EMI due that day), and the 30/60/90-day outlook equals balance + income − (EMIs + rent + 30 days of spending) per month: ₹61,000 / ₹72,000 / ₹83,000 for Siddhartha. All pass.
-
-**Result: 25/25 checks pass.** The same result was confirmed in the browser: for ₹20,000, the simulator, the pay-screen warning ("short by ₹1,196") and the home screen after paying all agree.
-
----
-
-## 7. Browser-only demo
-
-`cd frontend && npm run build:demo` produces `frontend/dist-demo/fincopilot-demo.html`: one self-contained page that runs the whole app with no server.
-
-- API calls are answered inside the page by `src/services/browserApi.js`, which imports the backend's `financialEngine.js`, `categories.js` and `seedData.js`. So the safe-to-spend figures come from the same code as the server.
-- State is kept in the browser's localStorage. Real bank names are replaced with placeholders, and the CSV download is hidden because some hosts block file downloads.
-- The normal production build is unchanged: the in-page API is only bundled in demo mode.
-
-**Equivalence check:** `scripts/serve-browser-api.mjs` wraps the in-page API in a small HTTP server so the backend's own tests can target it. Result: **13/13 API tests and 25/25 engine checks pass**, the same as the real server. This check caught one bug in the new demo code itself (a response field named `status` collided with the HTTP status), which was fixed before publishing. The full browser walkthrough also passes on the standalone page with no backend running.
-
----
-
-## 8. GitHub and deployment status
-
-**GitHub: not pushed yet.**
-- All work is committed on branch `claude/brave-dirac-onav19` (see §9), but every write to `Jaya-Siddhartha/AI-Financial-Copilot` is refused with `403`: git push, creating a branch, and API commits.
-- Cause: this session is signed in to GitHub as `senapathiyaswanth`, while the repository belongs to `Jaya-Siddhartha`, and the Claude GitHub App isn't installed on that repository. Reading the repository works; writing does not.
-- Fix: the repository owner installs the Claude GitHub App on the repo (https://github.com/apps/claude/installations/select_target), or pushes the branch themselves from the git bundle provided in the session.
-
-**Deployment: not done from this session.**
-- The session's network policy blocks `*.vercel.app` and `api.vercel.com`, and no Vercel token is configured. The live URL couldn't be opened to verify it either.
-- The repo is deployable as-is with the existing `vercel.json`. If the Vercel project is connected to GitHub, pushing this branch creates a **preview deployment** and merging to `main` updates production.
-- To deploy manually: `npm i -g vercel && vercel --prod` from the repo root. Set `MONGODB_URI` in the Vercel project settings so data persists across function instances.
-- After deploying, check: `GET /api/health` returns `online`; the home page loads; a ₹1 payment with PIN `1234` succeeds.
-
----
-
-## 9. Commit history for this update
-
-Branch `claude/brave-dirac-onav19`, based on `main` at `481da7d`.
-
-| Commit | Summary |
+| # | Change |
 |---|---|
-| `5626723` | Redesign the UI in a payment-app style, fix payment and EMI bugs (B1–B23, F1–F10, R1–R7), add the API test suite, this report and UPGRADES.md |
-| `04f6672` | Make the "Can I afford it?" simulator match the engine after a payment (F11); add test 13 |
-| `3cfd62d` | Add the browser-only demo; move seed data to `seedData.js`; let the tests target any API URL |
-| (latest) | Rewrite the README, add CONTRIBUTING.md, update this report |
+| E1 | Daily spending and the category breakdown use only the last 30 days. |
+| E2 | Outlook balances keep their sign and carry `shortfall: true`; rent is last-30-days rent. The UI shows "Short ₹X" in red. |
+| E3 | Due days are clamped to the month's length everywhere, including the 7-day projection. |
+| E4 | New `overdue` status: the previous due date has passed, the loan existed then, and no payment covers it. Overdue EMIs are due now, sorted first, deducted tomorrow in the projection, raise SAFE to CAUTION, and lead the advice. The frontend simulator mirrors the rule. |
+| E7 | No colours in the engine output. |
+| D3 | `analyzeFinancialState` and `enrichEmi` accept `now`, used by 8 new date tests. |
+| — | Advice and summaries rewritten in plain words ("You have enough for your ₹20,000 EMI and your everyday spending"). |
 
----
+### Interface: Doomsday theme and ease of use
 
-## 10. Files changed
-
-87 files versus `481da7d`: 36 added, 29 deleted, 22 modified (plus CONTRIBUTING.md in the latest commit).
-
-**Backend**
-
-| File | Change |
+| # | Change |
 |---|---|
-| `src/server.js` | DB connection middleware for serverless; body size limit; `x-powered-by` off; starts listening only when run directly |
-| `src/services/dataService.js` | PIN check with lockout, transfers, balance check and PIN change for both stores; atomic balance updates; escaped search |
-| `src/services/financialEngine.js` | Shared EMI enrichment with cycle rollover and closed loans; due day clamped to month length; rent from the ledger; returns `discretionarySpend` |
-| `src/services/seedData.js` | **New.** Demo data as plain objects |
-| `src/services/seedService.js` | Loads `seedData.js` |
-| `src/controllers/*.js` | Validation, correct status codes, EMI ownership, category whitelist, amount rules, payment notes |
-| `src/config/store.js` | One id per record; atomic balance adjust; configurable data folder; old transfer/PIN code moved to dataService |
-| `src/models/User.js` | PIN attempt counter and lock time |
-| `tests/api.test.js` | **New.** 13 tests (replaces `test_all_15_cases.js` and `test_e2e.js`) |
-| `package.json`, `package-lock.json` | `test` and `backup` scripts; `qs` security update |
-| `data/db.json`, `backups/*.json` | **Removed** from git (runtime data; the backup held UPI PINs) |
+| U2, A1, A2 | New design system in the style of the Doomsday Hackathon site: `#070907` background with a faint grid, `#9DFF00` accent, `#FF6A00` / `#FFD400` for risk and caution, corner-bracket frames, Russo One / Inter / JetBrains Mono. All sizes in `rem`; a **Text size** setting (100 / 112.5 / 125%); **Dark** and **Light** themes; all text tokens ≥ 4.5:1. Settings persist per device and apply before first paint. |
+| U1 | Home rebuilt around "Money you can spend safely": status sentence, money-split bar, "How is this number worked out?" help, big labelled action tiles, plain labels ("EMIs to pay", "Recent payments"). First-run **getting-started tips**. **Read aloud** via the Web Speech API. |
+| U3 | **First-time payee** warning; risky payments need an "I understand" tick and read "Pay ₹X anyway"; PIN pad safety note. |
+| U4, A3 | New charts: 7-day area chart with a dashed "Needed for EMIs" line and HTML labels, category donut with amounts and percentages, **money calendar**, full-width outlook rows. Each chart has text or a screen-reader table. |
+| U5, A4 | Sheets cannot be closed while a payment is processing, trap Tab, return focus, and keep autofocused fields focused. PIN progress is announced in a live region. |
+| U6 | Bottom bar: Home, Insights, Pay, EMIs, **Profile**; History is on Home and in Profile. Each tab has a URL hash, so Back works. |
+| U7 | **My QR** (`upi://pay?pa=…&pn=…&cu=INR`, `qrcode` library) in Receive and Profile. Web app manifest and icon. |
+| U8 | "Can I afford it?" says when an amount is more than the balance, and has quick amounts. |
+| — | Banners on Home for overdue and soon-due EMIs; EMIs page shows Overdue state and % repaid. |
 
-**Frontend**
+### Engineering and docs
 
-| File | Change |
+| # | Change |
 |---|---|
-| `src/App.jsx` | **Rewritten.** App shell, navigation, sheets, toasts |
-| `src/pages/*` | **Replaced.** Home, Insights, EMIs, History, Profile (8 old pages removed) |
-| `src/flows/*` | **New.** Pay, check balance, change PIN, receive, add EMI, pay EMI, transaction details, confirm |
-| `src/components/*` | **Replaced.** `TransactionRow` and `ui/` primitives (13 old components removed) |
-| `src/lib/format.js`, `src/lib/affordability.js` | **New.** Formatting; the "Can I afford it?" simulator (replaces `predictionEngine.js`) |
-| `src/services/api.js` | Simplified client; demo-mode adapter |
-| `src/services/browserApi.js` | **New.** In-page API for the demo build |
-| `src/styles/index.css` | **Rewritten.** Design system |
-| `src/constants/*` | Categories aligned with the backend; demo contacts |
-| `index.html`, `vite.config.js`, `package.json` | Title, favicon, font; demo build mode; unused libraries removed |
-| `scripts/*` | **New.** Demo build and API wrapper for tests |
-| `dist/index.html` | **Removed** (broken committed build) |
-
-**Repository**
-
-| File | Change |
-|---|---|
-| `README.md` | **Rewritten** |
-| `AUDIT_REPORT.md`, `UPGRADES.md`, `CONTRIBUTING.md` | **New** |
-| `FINCOPILOT_COMPLETE_AUDIT.md`, `FINCOPILOT_UPGRADE_REPORT.md` | **Removed** (outdated) |
-| `docs/screenshots/*` | **New** |
-| `docs/DATABASE_BACKUP_AND_RECOVERY.md` | Stray LaTeX arrows fixed |
-| `.gitignore` | Ignores `backend/data/`, `backend/backups/`, `frontend/dist-demo` |
+| D1 | `.github/workflows/ci.yml`: backend tests, frontend build, demo build, and the API tests against the in-browser API. |
+| D6 | All screenshots retaken, plus Insights, My QR and Light/Extra-large views. |
+| D7 | `build-demo.mjs` path fix for Windows; manifest links stripped from the single-file demo. |
+| — | README, UPGRADES (with this session's research) and CONTRIBUTING updated. |

@@ -1,61 +1,86 @@
 import { CATEGORIES } from '../config/categories.js';
 
-// Calculate days remaining until target day of month (1-31).
-// A due day beyond the month's length (e.g. 31 in September) falls on the month's last day.
-export const getDaysUntil = (dueDay, now = new Date()) => {
-  const currentDay = now.getDate();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const thisMonthDue = Math.min(Number(dueDay), daysInMonth);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-  if (thisMonthDue >= currentDay) {
-    return thisMonthDue - currentDay;
-  }
-  const daysInNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate();
-  return daysInMonth - currentDay + Math.min(Number(dueDay), daysInNextMonth);
-};
+// Spending older than this is ignored when working out the usual daily spend.
+export const SPENDING_WINDOW_DAYS = 30;
+export const MIN_DAILY_BURN = 300;
+export const SAFETY_RESERVE = 2000;
 
-// An EMI paid within the last PAID_CYCLE_DAYS counts as paid for the current cycle; after that
-// it becomes due again for the next month.
+// An EMI paid up to PAID_CYCLE_DAYS before a due date counts as paid for that due date.
 const PAID_CYCLE_DAYS = 25;
 
+const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+
+// The due date for `dueDay` in a given month. A due day beyond the month's length
+// (e.g. 31 in September) falls on the month's last day.
+const dueDateIn = (year, month, dueDay) =>
+  new Date(year, month, Math.min(Number(dueDay), daysInMonth(year, month)));
+
+// Calculate days remaining until target day of month (1-31).
+export const getDaysUntil = (dueDay, now = new Date()) => {
+  const today = startOfDay(now);
+  let due = dueDateIn(today.getFullYear(), today.getMonth(), dueDay);
+  if (due < today) due = dueDateIn(today.getFullYear(), today.getMonth() + 1, dueDay);
+  return Math.round((due - today) / DAY_MS);
+};
+
+const paidFor = (emi, dueDate) =>
+  Boolean(emi.lastPaidDate) && new Date(emi.lastPaidDate).getTime() > dueDate.getTime() - PAID_CYCLE_DAYS * DAY_MS;
+
 export const isPaidThisCycle = (emi, now = new Date()) => {
-  if (emi.status !== 'paid_this_cycle') return false;
-  if (!emi.lastPaidDate) return true;
-  const daysSincePaid = (now.getTime() - new Date(emi.lastPaidDate).getTime()) / 86400000;
-  return daysSincePaid < PAID_CYCLE_DAYS;
+  const today = startOfDay(now);
+  const next = new Date(today.getTime() + getDaysUntil(emi.dueDay, now) * DAY_MS);
+  return paidFor(emi, next);
 };
 
 // Adds due-date countdown, reminder text and urgency level to an EMI record.
-export const enrichEmi = (emi) => {
+// status: 'upcoming' | 'overdue' | 'paid_this_cycle' | 'closed'
+export const enrichEmi = (emi, now = new Date()) => {
   const plain = typeof emi.toObject === 'function' ? emi.toObject() : emi;
-  const daysRemaining = plain.dueDay ? getDaysUntil(plain.dueDay) : 10;
-  const paid = isPaidThisCycle(plain);
-  let reminderBadge;
-  let urgencyLevel;
+  const today = startOfDay(now);
+  const dueDay = Number(plain.dueDay) || 1;
+  const daysUntilNext = getDaysUntil(dueDay, now);
+  const nextDue = new Date(today.getTime() + daysUntilNext * DAY_MS);
+  const prevDue = dueDateIn(nextDue.getFullYear(), nextDue.getMonth() - 1, dueDay);
+  const createdAt = plain.createdAt ? startOfDay(new Date(plain.createdAt)) : null;
 
   const closed = plain.remainingInstallments !== undefined && Number(plain.remainingInstallments) <= 0;
+  // The previous due date has passed, the loan already existed then, and nothing was paid for it.
+  const overdue = !closed && (!createdAt || prevDue >= createdAt) && !paidFor(plain, prevDue);
+  const paid = !closed && !overdue && paidFor(plain, nextDue);
+  const daysOverdue = overdue ? Math.round((today - prevDue) / DAY_MS) : 0;
 
+  let status;
+  let reminderBadge;
+  let urgencyLevel;
   if (closed) {
+    status = 'closed';
     reminderBadge = 'Loan closed';
     urgencyLevel = 'paid';
+  } else if (overdue) {
+    status = 'overdue';
+    reminderBadge = `Overdue by ${daysOverdue} day${daysOverdue === 1 ? '' : 's'}`;
+    urgencyLevel = 'critical';
   } else if (paid) {
-    reminderBadge = 'Paid this cycle';
+    status = 'paid_this_cycle';
+    reminderBadge = 'Paid this month';
     urgencyLevel = 'paid';
-  } else if (daysRemaining === 0) {
-    reminderBadge = 'Due today';
-    urgencyLevel = 'critical';
-  } else if (daysRemaining === 1) {
-    reminderBadge = 'Due tomorrow';
-    urgencyLevel = 'critical';
   } else {
-    reminderBadge = `Due in ${daysRemaining} days`;
-    urgencyLevel = daysRemaining <= 3 ? 'warning' : 'normal';
+    status = 'upcoming';
+    if (daysUntilNext === 0) reminderBadge = 'Due today';
+    else if (daysUntilNext === 1) reminderBadge = 'Due tomorrow';
+    else reminderBadge = `Due in ${daysUntilNext} days`;
+    urgencyLevel = daysUntilNext <= 1 ? 'critical' : daysUntilNext <= 3 ? 'warning' : 'normal';
   }
 
   return {
     ...plain,
-    status: closed ? 'closed' : paid ? 'paid_this_cycle' : 'upcoming',
-    daysRemaining,
+    status,
+    // An overdue EMI is due now.
+    daysRemaining: overdue ? 0 : daysUntilNext,
+    daysOverdue,
     reminderBadge,
     urgencyLevel,
   };
@@ -72,6 +97,8 @@ export const isFixedCategory = (category = '') => {
   );
 };
 
+const rupees = (n) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
 // Central Financial Calculation Engine
 export const analyzeFinancialState = ({
   user = {},
@@ -79,18 +106,19 @@ export const analyzeFinancialState = ({
   transactions = [],
   emis = [],
   extraHypotheticalExpense = 0,
+  now = new Date(),
 }) => {
   const baseBalance = Number(account.currentBalance ?? 50000);
   const currentBalance = Math.max(0, baseBalance - Number(extraHypotheticalExpense || 0));
   const verifiedBalance = Number(account.verifiedBalance ?? baseBalance);
-  const lastBalanceCheckDate = account.lastBalanceCheckDate || new Date().toISOString();
+  const lastBalanceCheckDate = account.lastBalanceCheckDate || now.toISOString();
 
-  // 1. Transactions Since Last Bank Balance Verification Checkpoint
+  // 1. Transactions since the last balance check, and spending in the recent window
   const checkTime = new Date(lastBalanceCheckDate).getTime();
+  const windowStart = now.getTime() - SPENDING_WINDOW_DAYS * DAY_MS;
   let creditsSinceCheck = 0;
   let debitsSinceCheck = 0;
   let totalDebitSum = 0;
-  let totalCreditSum = 0;
   let nonFixedDebitsSum = 0;
   let housingDebitsSum = 0;
   const categoryMap = {};
@@ -98,28 +126,29 @@ export const analyzeFinancialState = ({
   transactions.forEach((tx) => {
     const amt = Number(tx.amount) || 0;
     const txTime = new Date(tx.date).getTime();
+    const inWindow = txTime >= windowStart;
 
     if (tx.type === 'debit') {
-      totalDebitSum += amt;
-      categoryMap[tx.category] = (categoryMap[tx.category] || 0) + amt;
-
-      if (!isFixedCategory(tx.category)) {
-        nonFixedDebitsSum += amt;
-      } else if (tx.category === CATEGORIES.HOUSING) {
-        housingDebitsSum += amt;
+      if (inWindow) {
+        totalDebitSum += amt;
+        categoryMap[tx.category] = (categoryMap[tx.category] || 0) + amt;
+        if (!isFixedCategory(tx.category)) {
+          nonFixedDebitsSum += amt;
+        } else if (tx.category === CATEGORIES.HOUSING) {
+          housingDebitsSum += amt;
+        }
       }
       if (txTime > checkTime) {
         debitsSinceCheck += amt;
       }
     } else if (tx.type === 'credit') {
-      totalCreditSum += amt;
       if (txTime > checkTime) {
         creditsSinceCheck += amt;
       }
     }
   });
 
-  // Category breakdown for charts
+  // Category breakdown for charts (last 30 days)
   const categoryBreakdown = Object.keys(categoryMap)
     .map((cat) => ({
       category: cat,
@@ -129,25 +158,26 @@ export const analyzeFinancialState = ({
     .sort((a, b) => b.amount - a.amount);
 
   // 2. EMI Obligations & Days Remaining
-  const enrichedEmis = emis.map(enrichEmi);
+  const enrichedEmis = emis.map((e) => enrichEmi(e, now));
 
-  const unpaidUpcomingEMIs = enrichedEmis.filter((e) => e.status === 'upcoming');
+  const unpaidEMIs = enrichedEmis.filter((e) => e.status === 'upcoming' || e.status === 'overdue');
+  const overdueEMIs = enrichedEmis.filter((e) => e.status === 'overdue');
   let nextEMI = null;
   let totalUpcomingEMIAmount = 0;
   let daysUntilNextEMI = 10;
 
-  if (unpaidUpcomingEMIs.length > 0) {
-    unpaidUpcomingEMIs.sort((a, b) => a.daysRemaining - b.daysRemaining);
-    nextEMI = unpaidUpcomingEMIs[0];
-    totalUpcomingEMIAmount = unpaidUpcomingEMIs.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-    daysUntilNextEMI = nextEMI.daysRemaining !== undefined ? nextEMI.daysRemaining : 10;
+  if (unpaidEMIs.length > 0) {
+    unpaidEMIs.sort((a, b) => a.daysRemaining - b.daysRemaining || b.daysOverdue - a.daysOverdue);
+    nextEMI = unpaidEMIs[0];
+    totalUpcomingEMIAmount = unpaidEMIs.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    daysUntilNextEMI = nextEMI.daysRemaining;
   }
 
   // 3. Daily Discretionary Burn Rate & Safety Cushion
-  // Normalize discretionary spend across a standard 30-day monthly window
-  const dailyBurnRate = Math.max(300, Math.round(nonFixedDebitsSum / 30));
+  // Everyday (non-fixed) spending over the last 30 days, per day.
+  const dailyBurnRate = Math.max(MIN_DAILY_BURN, Math.round(nonFixedDebitsSum / SPENDING_WINDOW_DAYS));
   const expectedNormalExpenses = Math.round(dailyBurnRate * Math.max(1, daysUntilNextEMI));
-  const safetyReserve = 2000;
+  const safetyReserve = SAFETY_RESERVE;
   const totalObligations = totalUpcomingEMIAmount + expectedNormalExpenses;
   const safeToSpend = Math.max(0, currentBalance - totalUpcomingEMIAmount - expectedNormalExpenses - safetyReserve);
   const balanceAfterObligations = currentBalance - totalUpcomingEMIAmount;
@@ -158,51 +188,59 @@ export const analyzeFinancialState = ({
   let advice = '';
   let riskReason = '';
   let projectedShortfall = 0;
+  const dueWhen = daysUntilNextEMI === 0 ? 'due now' : `due in ${daysUntilNextEMI} day${daysUntilNextEMI === 1 ? '' : 's'}`;
 
-  if (unpaidUpcomingEMIs.length === 0) {
+  if (unpaidEMIs.length === 0) {
     status = 'SAFE';
-    summary = 'You have no pending EMI obligations this cycle. Your full balance is available.';
-    advice = 'Your finances look completely safe. Maintain your healthy savings rate.';
-    riskReason = 'Zero pending debt obligations for the active billing cycle.';
+    summary = 'You have no EMIs left to pay this month. Your balance is free to use.';
+    advice = 'You are in good shape. Keep a little aside for surprises.';
+    riskReason = 'No EMI payments are pending this month.';
   } else if (currentBalance < totalUpcomingEMIAmount) {
     status = 'HIGH RISK';
     projectedShortfall = totalUpcomingEMIAmount - currentBalance;
-    summary = `Your current balance (₹${currentBalance.toLocaleString('en-IN')}) is below your upcoming ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI obligation due in ${daysUntilNextEMI} days.`;
-    advice = `Immediate action needed: arrange ₹${projectedShortfall.toLocaleString('en-IN')} before your EMI due date and stop discretionary spending.`;
-    riskReason = `Current available funds do not cover the principal EMI amount of ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')}.`;
+    summary = `Your balance (${rupees(currentBalance)}) is less than the ${rupees(totalUpcomingEMIAmount)} you owe in EMIs, ${dueWhen}.`;
+    advice = `Add ${rupees(projectedShortfall)} before the due date and stop non-essential spending.`;
+    riskReason = `Your balance does not cover your EMIs of ${rupees(totalUpcomingEMIAmount)}.`;
   } else if (currentBalance < totalObligations) {
     status = 'HIGH RISK';
     projectedShortfall = totalObligations - currentBalance;
-    summary = `Based on your normal daily spending (₹${dailyBurnRate.toLocaleString('en-IN')}/day), you may run short by approximately ₹${projectedShortfall.toLocaleString('en-IN')} before your ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI due in ${daysUntilNextEMI} days.`;
-    advice = `Cap daily discretionary spending below ₹${Math.max(0, Math.round(balanceAfterObligations / Math.max(1, daysUntilNextEMI))).toLocaleString('en-IN')}/day to protect your EMI.`;
-    riskReason = `Projected daily spending will consume the balance needed to settle the upcoming EMI.`;
+    summary = `At your usual spending of ${rupees(dailyBurnRate)} a day, you could be ${rupees(projectedShortfall)} short for your ${rupees(totalUpcomingEMIAmount)} EMI, ${dueWhen}.`;
+    advice = `Try to keep daily spending under ${rupees(Math.max(0, balanceAfterObligations / Math.max(1, daysUntilNextEMI)))} a day until your EMI is paid.`;
+    riskReason = 'Your usual spending would use up the money needed for the EMI.';
   } else if (currentBalance < totalObligations + safetyReserve) {
     status = 'CAUTION';
-    summary = `Your balance covers your ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI, but remaining buffer after expected expenses is narrow.`;
-    advice = 'Avoid large non-essential purchases until after your EMI payment clears.';
-    riskReason = 'Remaining cushion is smaller than the recommended ₹2,000 emergency buffer.';
+    summary = `You can pay your ${rupees(totalUpcomingEMIAmount)} EMI, but very little is left over after everyday spending.`;
+    advice = 'Avoid big purchases until your EMI is paid.';
+    riskReason = `Less than the ${rupees(safetyReserve)} safety cushion would be left.`;
   } else {
     status = 'SAFE';
-    summary = `Your balance is fully sufficient for your upcoming ₹${totalUpcomingEMIAmount.toLocaleString('en-IN')} EMI and expected normal spending.`;
-    advice = `Your upcoming EMI is protected. You can safely spend up to ₹${safeToSpend.toLocaleString('en-IN')} without putting your loan payment at risk.`;
-    riskReason = `Available balance exceeds all upcoming loan installments, daily burn rate, and emergency buffer.`;
+    summary = `You have enough for your ${rupees(totalUpcomingEMIAmount)} EMI and your everyday spending.`;
+    advice = `You can spend up to ${rupees(safeToSpend)} without putting your EMI at risk.`;
+    riskReason = 'Your balance covers your EMIs, your usual spending and a safety cushion.';
+  }
+
+  // A missed EMI always needs attention, even when the balance covers it.
+  if (overdueEMIs.length > 0) {
+    const late = overdueEMIs[0];
+    if (status === 'SAFE') status = 'CAUTION';
+    advice = `Your ${late.name} EMI is ${late.daysOverdue} day${late.daysOverdue === 1 ? '' : 's'} late. Pay it now to avoid late fees. ${advice}`;
   }
 
   // 5. 7-Day Projected Daily Balance Outlook
   const projected7Days = [];
   let runningProjectedBalance = currentBalance;
-  const now = new Date();
 
   for (let i = 0; i <= 7; i++) {
-    const targetDate = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+    const targetDate = new Date(now.getTime() + i * DAY_MS);
     const dayOfMonth = targetDate.getDate();
+    const monthLength = daysInMonth(targetDate.getFullYear(), targetDate.getMonth());
     const dayLabel = i === 0 ? 'Today' : `Day +${i}`;
 
     let dayEmiDeduction = 0;
-    unpaidUpcomingEMIs.forEach((e) => {
-      if (e.dueDay === dayOfMonth) {
-        dayEmiDeduction += Number(e.amount) || 0;
-      }
+    unpaidEMIs.forEach((e) => {
+      // Overdue EMIs are assumed to be paid tomorrow; others on their (month-clamped) due day.
+      const dueToday = e.status === 'overdue' ? i === 1 : Math.min(Number(e.dueDay), monthLength) === dayOfMonth;
+      if (dueToday) dayEmiDeduction += Number(e.amount) || 0;
     });
 
     if (i > 0) {
@@ -215,72 +253,60 @@ export const analyzeFinancialState = ({
       date: targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
       projectedBalance: runningProjectedBalance,
       burnDeduction: i === 0 ? 0 : dailyBurnRate,
-      emiDeduction: dayEmiDeduction,
+      emiDeduction: i === 0 ? 0 : dayEmiDeduction,
       status: runningProjectedBalance >= totalUpcomingEMIAmount ? 'safe' : 'risk',
     });
   }
 
   // 6. Income & Salary Cycle Replenishment
   const salaryDate = user.salaryDate || 1;
-  const daysUntilSalary = getDaysUntil(salaryDate);
+  const daysUntilSalary = getDaysUntil(salaryDate, now);
   const monthlyIncome = Number(user.monthlyIncome || 50000);
 
-  // 7. Multi-Horizon Forecast (30, 60, 90 Days)
+  // 7. Multi-Horizon Forecast (30, 60, 90 Days). Ending balances can be negative: that is a shortfall.
   const monthlyEmiTotal = enrichedEmis
     .filter((e) => e.status !== 'closed')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const monthlyDiscretionary = dailyBurnRate * 30;
-  const monthlyHousing = housingDebitsSum; // Rent seen in the ledger
+  const monthlyHousing = housingDebitsSum; // Rent paid in the last 30 days
+  const monthlyOut = monthlyEmiTotal + monthlyHousing + monthlyDiscretionary;
 
   const forecastHorizons = [
-    {
-      horizonDays: 30,
-      label: '30-Day Outlook',
-      projectedInflow: monthlyIncome,
-      projectedObligations: monthlyEmiTotal + monthlyHousing + monthlyDiscretionary,
-      projectedNetEndingBalance: Math.max(0, currentBalance + monthlyIncome - (monthlyEmiTotal + monthlyHousing + monthlyDiscretionary)),
-      confidence: 'High (Based on recurring cycle)',
-    },
-    {
-      horizonDays: 60,
-      label: '60-Day Outlook',
-      projectedInflow: monthlyIncome * 2,
-      projectedObligations: (monthlyEmiTotal + monthlyHousing + monthlyDiscretionary) * 2,
-      projectedNetEndingBalance: Math.max(0, currentBalance + monthlyIncome * 2 - (monthlyEmiTotal + monthlyHousing + monthlyDiscretionary) * 2),
-      confidence: 'Medium (Assumes stable income & commitments)',
-    },
-    {
-      horizonDays: 90,
-      label: '90-Day Outlook',
-      projectedInflow: monthlyIncome * 3,
-      projectedObligations: (monthlyEmiTotal + monthlyHousing + monthlyDiscretionary) * 3,
-      projectedNetEndingBalance: Math.max(0, currentBalance + monthlyIncome * 3 - (monthlyEmiTotal + monthlyHousing + monthlyDiscretionary) * 3),
-      confidence: 'Estimated (Longer range horizon)',
-    },
-  ];
+    [30, 'High (Based on recurring cycle)'],
+    [60, 'Medium (Assumes stable income & commitments)'],
+    [90, 'Estimated (Longer range horizon)'],
+  ].map(([horizonDays, confidence]) => {
+    const months = horizonDays / 30;
+    const ending = currentBalance + monthlyIncome * months - monthlyOut * months;
+    return {
+      horizonDays,
+      label: `${horizonDays}-Day Outlook`,
+      projectedInflow: monthlyIncome * months,
+      projectedObligations: monthlyOut * months,
+      projectedNetEndingBalance: ending,
+      shortfall: ending < 0,
+      confidence,
+    };
+  });
 
   // 8. Upcoming Obligation Timeline Events
-  const timelineEvents = [];
-  unpaidUpcomingEMIs.forEach((e) => {
-    timelineEvents.push({
-      type: 'emi',
-      title: `${e.name} (${e.lender})`,
-      amount: Number(e.amount),
-      daysRemaining: e.daysRemaining,
-      dueDay: e.dueDay,
-      tag: 'EMI Obligation',
-      color: '#D97706',
-    });
-  });
+  const timelineEvents = unpaidEMIs.map((e) => ({
+    type: 'emi',
+    title: `${e.name} (${e.lender})`,
+    amount: Number(e.amount),
+    daysRemaining: e.daysRemaining,
+    dueDay: e.dueDay,
+    overdue: e.status === 'overdue',
+    tag: e.status === 'overdue' ? 'Overdue EMI' : 'EMI Obligation',
+  }));
 
   timelineEvents.push({
     type: 'salary',
-    title: 'Salary Replenishment',
+    title: 'Salary',
     amount: monthlyIncome,
     daysRemaining: daysUntilSalary,
     dueDay: salaryDate,
     tag: 'Expected Inflow',
-    color: '#059669',
   });
 
   timelineEvents.sort((a, b) => a.daysRemaining - b.daysRemaining);
@@ -294,6 +320,7 @@ export const analyzeFinancialState = ({
     debitsSinceCheck,
     totalUpcomingEMI: totalUpcomingEMIAmount,
     nextEMI,
+    overdueCount: overdueEMIs.length,
     dailyBurnRate,
     discretionarySpend: nonFixedDebitsSum,
     expectedNormalExpenses,
