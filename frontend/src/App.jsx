@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bot, CalendarClock, History, House, LoaderCircle, PieChart, Plus, RefreshCw, Settings } from 'lucide-react';
 import { Avatar } from './components/ui/Avatar';
 import { Alert } from './components/ui/Alert';
-import { AuthPage, ResetPasswordPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { HomePage } from './pages/HomePage';
 import { ActivityPage } from './pages/ActivityPage';
@@ -43,8 +42,6 @@ let tmpCounter = 0;
 const tmpId = () => `tmp-${Date.now()}-${tmpCounter++}`;
 
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = still checking
-  const [recovering, setRecovering] = useState(window.location.hash === '#reset');
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState(tabFromHash);
@@ -52,23 +49,13 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const autopayRan = useRef(false);
-  const userId = session?.user?.id;
 
-  // ---------- session ----------
-  useEffect(() => {
-    store.auth.session().then(setSession).catch(() => setSession(null));
-    return store.auth.onChange((event, s) => {
-      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
-      setSession(s);
-    });
-  }, []);
-
+  // ---------- data (saved on this device) ----------
   const load = useCallback(async () => {
-    if (!userId) return;
     setLoadError('');
     setSyncing(true);
     try {
-      const everything = await store.loadEverything(userId);
+      const everything = await store.loadEverything();
       setData(everything);
       applyDisplay({ theme: everything.profile.theme, textSize: everything.profile.textSize });
     } catch (err) {
@@ -76,15 +63,11 @@ export default function App() {
     } finally {
       setSyncing(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
-    if (userId) load();
-    else {
-      setData(null);
-      autopayRan.current = false;
-    }
-  }, [userId, load]);
+    load();
+  }, [load]);
 
   useEffect(() => {
     const onHash = () => {
@@ -178,7 +161,7 @@ export default function App() {
       });
       if ('theme' in patch || 'textSize' in patch) applyDisplay({ theme: patch.theme ?? before?.theme, textSize: patch.textSize ?? before?.textSize });
       try {
-        const saved = await store.updateProfile(userId, patch);
+        const saved = await store.updateProfile(patch);
         patchData((d) => ({ ...d, profile: saved }));
       } catch (err) {
         patchData((d) => ({ ...d, profile: before }));
@@ -248,7 +231,7 @@ export default function App() {
     const importStatements = async (items) => {
       let count = 0;
       for (const item of items) {
-        const { statement, transactions } = await store.saveStatement({ userId, ...item });
+        const { statement, transactions } = await store.saveStatement(item);
         count += transactions.length;
         patchData((d) => ({ ...d, statements: [statement, ...d.statements], transactions: sortTx([...transactions, ...d.transactions]) }));
       }
@@ -290,18 +273,21 @@ export default function App() {
       updateBalance: () => setSheet({ type: 'balance' }),
       upload: () => setSheet({ type: 'upload' }),
       closeSheet: () => setSheet(null),
-      signOut: () =>
-        confirm({
-          title: 'Sign out?',
-          message: 'You can sign back in any time with your email and password.',
-          confirmLabel: 'Sign out',
-          onConfirm: async () => {
-            await store.auth.signOut();
-            setSheet(null);
-          },
-        }),
+      exportBackup: store.exportBackup,
+      importBackup: async (text) => {
+        const result = await store.importBackup(text);
+        autopayRan.current = false;
+        await load();
+        return result;
+      },
+      deleteAllData: async () => {
+        await store.deleteAllData();
+        autopayRan.current = false;
+        window.location.hash = '';
+        await load();
+      },
     };
-  }, [tab, userId, load, notify, fail]);
+  }, [tab, load, notify, fail]);
 
   // ---------- autopay: record EMIs whose due date has arrived (once per visit) ----------
   useEffect(() => {
@@ -324,27 +310,6 @@ export default function App() {
   }, [data, analysis, actions, notify, fail]);
 
   // ---------- screens ----------
-  if (session === undefined) {
-    return (
-      <div className="loading" role="status">
-        <LoaderCircle size={32} className="spin text-accent" />
-        <span>Opening FinCopilot…</span>
-      </div>
-    );
-  }
-  if (recovering && session) {
-    return (
-      <ResetPasswordPage
-        onDone={() => {
-          setRecovering(false);
-          window.history.replaceState(null, '', window.location.pathname);
-          notify('Password changed');
-        }}
-      />
-    );
-  }
-  if (!session) return <AuthPage />;
-
   if (!data) {
     return (
       <div className="loading" role="status">
@@ -353,13 +318,12 @@ export default function App() {
             <Alert>{loadError}</Alert>
             <div className="btn-row" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn-primary" onClick={load}>Try again</button>
-              <button type="button" className="btn btn-outline" onClick={() => store.auth.signOut()}>Sign out</button>
             </div>
           </div>
         ) : (
           <>
             <LoaderCircle size={32} className="spin text-accent" />
-            <span>Loading your money…</span>
+            <span>Opening FinCopilot…</span>
           </>
         )}
       </div>
@@ -367,10 +331,10 @@ export default function App() {
   }
 
   if (!data.profile.onboarded) {
-    return <OnboardingPage profile={data.profile} email={session.user.email} actions={actions} />;
+    return <OnboardingPage profile={data.profile} actions={actions} />;
   }
 
-  const ctx = { data, analysis, credit, engineInput, actions, email: session.user.email };
+  const ctx = { data, analysis, credit, engineInput, actions };
   const pages = {
     home: <HomePage {...ctx} />,
     activity: <ActivityPage {...ctx} />,
@@ -401,7 +365,7 @@ export default function App() {
     }
   };
 
-  const name = data.profile.fullName || session.user.email;
+  const name = data.profile.fullName || 'Me';
 
   return (
     <>
@@ -421,7 +385,7 @@ export default function App() {
             <Avatar name={name} size={34} />
             <span className="topbar-who">
               <span className="topbar-name">{data.profile.fullName || 'Settings'}</span>
-              <span className="topbar-sub">{session.user.email}</span>
+              <span className="topbar-sub">Settings</span>
             </span>
           </button>
         </div>
@@ -444,7 +408,7 @@ export default function App() {
               {label}
             </button>
           ))}
-          <div className="sidebar-foot">Your data is private to your account.</div>
+          <div className="sidebar-foot">Your data stays on this device.</div>
         </nav>
         <main className="main">{pages[tab]}</main>
       </div>

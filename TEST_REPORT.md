@@ -6,6 +6,12 @@
 
 ---
 
+## Update for 2.1 (no login)
+
+Login was removed and data is now saved on the device. **34 tests pass**, including 6 new ones for on-device saving: data survives a reload, bad input is refused, a full device undoes the change, statements save and delete correctly, and backup and restore bring everything back. A browser run confirmed that the app opens straight to setup, an expense updates the balance at once, data survives a reload, and a bank statement upload saves 25 transactions. The simulation results below are unchanged, because the money engine did not change. The sign-in and Supabase security parts of this report (§4 step 1, §6, §7) describe version 2.0.
+
+---
+
 ## The short version
 
 - **391,372 automatic checks, 0 failures.** A computer "simulation" played 20,000 random money situations and 4,000 random bank and UPI statements, and checked after each one that every number still followed the rules.

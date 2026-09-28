@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { ExternalLink, FileText, KeyRound, LoaderCircle, LogOut, ShieldCheck, Trash2, Type } from 'lucide-react';
-import { Alert } from '../components/ui/Alert';
+import React, { useEffect, useRef, useState } from 'react';
+import { Download, FileText, LoaderCircle, ShieldCheck, Trash2, Type, Upload } from 'lucide-react';
 import { ThemePicker } from '../components/ThemePicker';
-import { auth, deleteAccount, downloadStatementFile } from '../data/store';
 import { TEXT_SIZES } from '../lib/settings';
-import { errorText, inr } from '../lib/format';
+import { inr } from '../lib/format';
 
 const digits = (v, max = 9) => v.replace(/[^0-9]/g, '').slice(0, max);
 
@@ -113,13 +111,6 @@ function BufferCard({ profile, actions }) {
 }
 
 function StatementsCard({ data, actions }) {
-  const open = async (s) => {
-    try {
-      window.open(await downloadStatementFile(s), '_blank', 'noopener');
-    } catch (err) {
-      actions.fail(err);
-    }
-  };
   const remove = (s) =>
     actions.confirm({
       title: `Delete ${s.fileName}?`,
@@ -158,9 +149,6 @@ function StatementsCard({ data, actions }) {
                   {s.sourceApp} · {s.txCount} transactions{s.periodStart ? ` · ${s.periodStart} to ${s.periodEnd}` : ''}
                 </div>
               </div>
-              {s.filePath && (
-                <button type="button" className="icon-btn" aria-label={`Open ${s.fileName}`} onClick={() => open(s)}><ExternalLink size={20} /></button>
-              )}
               <button type="button" className="icon-btn" aria-label={`Delete ${s.fileName}`} onClick={() => remove(s)}><Trash2 size={20} /></button>
             </div>
           ))}
@@ -170,63 +158,88 @@ function StatementsCard({ data, actions }) {
   );
 }
 
-function AccountCard({ data, email, actions }) {
-  const [pw, setPw] = useState('');
+// Data lives on this device, so a backup file is how it moves to a new phone or computer.
+function DataCard({ data, actions }) {
+  const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
 
-  const changePassword = async () => {
-    if (pw.length < 8) return setMsg({ tone: 'red', text: 'The new password must be at least 8 characters.' });
-    setBusy(true);
-    try {
-      await auth.updatePassword(pw);
-      setPw('');
-      setMsg({ tone: 'green', text: 'Password changed.' });
-    } catch (err) {
-      setMsg({ tone: 'red', text: errorText(err) });
-    } finally {
-      setBusy(false);
-    }
-    return undefined;
+  const download = () => {
+    const blob = new Blob([actions.exportBackup()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fincopilot-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    actions.notify('Backup downloaded');
   };
 
-  const removeAccount = () =>
+  const restore = (file) =>
     actions.confirm({
-      title: 'Delete your account?',
-      message: 'This permanently deletes your account, all transactions, EMIs and uploaded statements. It cannot be undone.',
+      title: 'Restore this backup?',
+      message: `Everything on this device will be replaced with the data in ${file.name}.`,
+      confirmLabel: 'Restore',
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          const result = await actions.importBackup(await file.text());
+          actions.closeSheet();
+          actions.notify(`Restored ${result.transactions} transactions and ${result.emis} EMIs`, 'ok', true);
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
+
+  const wipe = () =>
+    actions.confirm({
+      title: 'Delete all data on this device?',
+      message: 'Your profile, transactions, EMIs and statements will be removed from this device. Download a backup first if you may need them.',
       confirmLabel: 'Delete everything',
       danger: true,
       requireText: 'DELETE',
       onConfirm: async () => {
-        await deleteAccount(data.profile.id);
+        await actions.deleteAllData();
+        actions.closeSheet();
       },
     });
 
   return (
     <section className="card">
-      <h2 className="card-title" style={{ marginBottom: 4 }}>Account</h2>
-      <p className="card-sub" style={{ marginBottom: 12 }}>Signed in as {email}</p>
-      <label className="field-label" htmlFor="set-pw"><KeyRound size={16} /> Change password</label>
-      <div className="inline-form" style={{ marginTop: 6 }}>
-        <input id="set-pw" className="input" type="password" autoComplete="new-password" placeholder="New password" value={pw} onChange={(e) => setPw(e.target.value)} style={{ flex: 1 }} />
-        <button type="button" className="btn btn-outline btn-sm" disabled={busy || !pw} onClick={changePassword}>Change</button>
-      </div>
-      {msg && <div style={{ marginTop: 10 }}><Alert tone={msg.tone}>{msg.text}</Alert></div>}
-      <div className="menu-card" style={{ marginTop: 12 }}>
-        <button type="button" className="menu-row" onClick={actions.signOut}>
-          <span className="icon-circle"><LogOut size={20} /></span>
-          <span className="row-main">Sign out</span>
+      <h2 className="card-title">Your data</h2>
+      <p className="card-sub" style={{ marginBottom: 12 }}>
+        Saved on this device only: {data.transactions.length} transactions, {data.emis.length} EMIs. Download a backup to keep a copy or move to another phone or computer.
+      </p>
+      <div className="menu-card">
+        <button type="button" className="menu-row" onClick={download}>
+          <span className="icon-circle"><Download size={20} /></span>
+          <span className="row-main">Download backup</span>
         </button>
-        <button type="button" className="menu-row danger" onClick={removeAccount}>
+        <button type="button" className="menu-row" onClick={() => fileRef.current?.click()} disabled={busy}>
+          <span className="icon-circle">{busy ? <LoaderCircle size={20} className="spin" /> : <Upload size={20} />}</span>
+          <span className="row-main">Restore from a backup file</span>
+        </button>
+        <button type="button" className="menu-row danger" onClick={wipe}>
           <span className="icon-circle danger"><Trash2 size={20} /></span>
-          <span className="row-main">Delete my account and data</span>
+          <span className="row-main">Delete all data on this device</span>
         </button>
       </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) restore(file);
+        }}
+      />
     </section>
   );
 }
 
-export function SettingsPage({ data, email, actions }) {
+export function SettingsPage({ data, actions }) {
   const { profile } = data;
   const setLook = async (patch) => {
     try {
@@ -262,12 +275,12 @@ export function SettingsPage({ data, email, actions }) {
       </section>
 
       <StatementsCard data={data} actions={actions} />
-      <AccountCard data={data} email={email} actions={actions} />
+      <DataCard data={data} actions={actions} />
 
       <section className="card">
         <h2 className="card-title" style={{ marginBottom: 8 }}><ShieldCheck size={20} /> Privacy</h2>
         <p className="muted small">
-          Your data is stored in your FinCopilot account and locked so only you can read it. Statements are read on your device; the original file is kept privately so you can open it again. The offline AI runs on your device and sends nothing anywhere. FinCopilot does not move money and is not a bank. The credit health number is an estimate, not your CIBIL score.
+          No account and no sign-up. Everything is saved on this device and never sent to a server. Statements are read on your device and the files are not kept. The offline AI also runs on your device and sends nothing anywhere. If you clear your browser data, FinCopilot data is cleared too, so keep a backup. FinCopilot does not move money and is not a bank. The credit health number is an estimate, not your CIBIL score.
         </p>
       </section>
     </div>

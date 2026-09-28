@@ -221,7 +221,7 @@ export function UploadSheet({ existing, actions, onClose }) {
       }
     >
       <p className="muted small">
-        Add up to {MAX_STATEMENTS_PER_UPLOAD} statements at once: PhonePe, Google Pay, Paytm, BHIM or any bank. PDF, Excel (.xlsx) or CSV. Files are read on your device, then kept privately in your account.
+        Add up to {MAX_STATEMENTS_PER_UPLOAD} statements at once: PhonePe, Google Pay, Paytm, BHIM or any bank. PDF, Excel (.xlsx) or CSV. Files are read on your device; only the transactions are saved, on this device.
       </p>
       <div className="slots">
         {slots.map((slot, i) => (

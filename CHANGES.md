@@ -1,4 +1,20 @@
-# What changed in FinCopilot 2.0
+# What changed in FinCopilot
+
+## 2.1: No login (28 September 2026)
+
+Sign-in was causing problems, so it has been removed.
+
+- **The app opens straight to setup and then the dashboard.** No email, no password, no account.
+- **Data is saved on the device** (browser storage) instead of Supabase. Every save is all-or-nothing, with a clear message if the device is full.
+- **New in Settings → Your data:** Download backup, Restore from a backup file, and Delete all data on this device.
+- Statement files are read on the device and no longer kept; their transactions are saved.
+- Removed: sign-in, sign-up, password reset and change, account deletion, the Supabase client library, and the developer test mode (no longer needed without accounts).
+- Kept for later: the Supabase schema in `supabase/migrations`, for cloud sync.
+- 6 new tests for on-device saving, rules, the device-full case and backup/restore (34 in total).
+
+---
+
+# FinCopilot 2.0
 
 **Date:** 28 September 2026
 

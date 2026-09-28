@@ -57,16 +57,19 @@ Version 2 replaces the demo wallet with a real expense and EMI manager: Supabase
 
 ## 4. Open items
 
+**Update for 2.1:** sign-in and Supabase were removed (data is now saved on the device), so the earlier open items about Supabase email settings, SMTP and sign-up CAPTCHA no longer apply.
+
 | # | Severity | Item | Recommendation |
 |---|---|---|---|
-| O1 | Medium | Supabase Auth Site URL and redirect URLs are not set yet, so emails would link to `localhost:3000` | Set them in the Supabase dashboard (README → Supabase setup). The Supabase connector used here cannot change auth settings |
-| O2 | Medium | Supabase's built-in email sender allows only a few emails per hour | Add SMTP (e.g. Resend or SES), or turn off email confirmation for a demo |
-| O3 | Low | No rate limiting beyond Supabase's defaults | Supabase applies auth rate limits; add CAPTCHA on sign-up if abuse appears |
-| O4 | Low | Scanned (image) PDFs cannot be read | Offer on-device OCR (e.g. Tesseract.js) as an optional step |
-| O5 | Low | Statement layouts beyond the tested ones may need tuning | The preview lets users untick or re-categorise; add layouts as real files are reported |
-| O6 | Low | The offline AI needs WebGPU; many phones cannot run it | The built-in assistant covers all questions; the AI is an extra |
+| O1 | Medium | Data lives in one browser; clearing site data deletes it | Settings offers Download backup and Restore; remind users to back up. Add optional cloud sync later (schema kept in `supabase/migrations`) |
+| O2 | Low | Browser storage is limited (usually 5–10 MB, over 20,000 transactions) | A clear "out of space" message is shown and nothing is half-saved |
+| O3 | Low | Scanned (image) PDFs cannot be read | Offer on-device OCR (e.g. Tesseract.js) as an optional step |
+| O4 | Low | Statement layouts beyond the tested ones may need tuning | The preview lets users untick or re-categorise; add layouts as real files are reported |
+| O5 | Low | The offline AI needs WebGPU; many phones cannot run it | The built-in assistant covers all questions; the AI is an extra |
 
-## 5. Security design
+## 5. Security design (2.0, with Supabase)
+
+*In 2.1 data stays on the device and nothing is sent to a server; the notes below describe the kept Supabase schema.*
 
 - **Row-level security** on `profiles`, `transactions`, `emis` and `statements`: every policy checks `auth.uid()` against the row owner. Storage policies restrict each user to the folder named after their user ID.
 - **No secrets in the app.** The Supabase publishable key is designed to be public; it can only do what the security rules allow.

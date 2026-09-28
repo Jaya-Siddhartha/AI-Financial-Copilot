@@ -68,8 +68,9 @@ export function OnboardingPage({ profile, actions }) {
 
         {step === 1 && (
           <>
+            <span className="eyebrow">Welcome to FinCopilot</span>
             <h2 className="page-title">Tell us about you</h2>
-            <p className="page-sub">This is used to work out safe spending. You can change it later.</p>
+            <p className="page-sub">No sign-up needed. Everything is saved on this device, and you can change it later.</p>
             <div className="field" style={{ marginTop: 16 }}>
               <label className="field-label" htmlFor="ob-name">Your name</label>
               <input id="ob-name" className="input" value={form.fullName} onChange={set('fullName')} maxLength={80} autoComplete="name" />
@@ -141,8 +142,8 @@ export function OnboardingPage({ profile, actions }) {
         {error && <div style={{ marginTop: 12 }}><Alert>{error}</Alert></div>}
 
         <div className="btn-row" style={{ marginTop: 20 }}>
-          <button type="button" className="btn btn-outline" onClick={() => (step === 1 ? actions.signOut() : setStep((s) => s - 1))} disabled={busy}>
-            {step === 1 ? 'Sign out' : 'Back'}
+          <button type="button" className="btn btn-outline" onClick={() => setStep((s) => s - 1)} disabled={busy || step === 1}>
+            Back
           </button>
           {step < 4 ? (
             <button type="button" className="btn btn-primary" onClick={next}>

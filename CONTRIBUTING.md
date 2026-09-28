@@ -7,8 +7,7 @@ Thanks for helping! FinCopilot is used by people of all ages, so every change sh
 ```bash
 cd frontend
 npm install
-npm run dev:mock     # the app with in-memory test data, no account needed
-npm run dev          # the app against the Supabase project in src/config.js
+npm run dev          # the app; data is saved in your browser
 ```
 
 Sample statements for the upload screen are in `frontend/tests/fixtures` (PhonePe sample password: `9876543210`).
@@ -29,8 +28,7 @@ GitHub Actions runs both, plus `npm audit`, on every push and pull request.
 - **Statement layouts:** `src/lib/statementParser.js`. Add a sample to `tests/statements.test.js` (and a fixture file if you can share one without personal data).
 - **Categories:** `src/lib/categories.js`. Keywords of four letters or fewer match whole words only.
 - **Assistant:** `src/lib/advisor.js`. Money decisions must stay in `DECISION_INTENTS` so they are answered by the calculator, never the language model.
-- **Database:** `supabase/migrations/`. Every new table needs row-level security with an owner check.
-- **Data access:** only `src/data/store.js` talks to Supabase; mirror any change in `src/data/mockStore.js`.
+- **Data:** only `src/data/store.js` reads and writes saved data (browser storage). Add tests in `tests/store.test.js`.
 
 ## Style
 
