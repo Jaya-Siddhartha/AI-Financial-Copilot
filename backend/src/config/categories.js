@@ -13,6 +13,7 @@ export const CATEGORIES = {
   HEALTH: 'Healthcare & Wellness',
   ENTERTAINMENT: 'Entertainment & Leisure',
   OTHER: 'Daily Expenses',
+  BANK_UPDATE: 'Bank balance update',
 };
 
 export const CATEGORY_LIST = Object.values(CATEGORIES);

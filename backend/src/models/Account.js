@@ -46,6 +46,11 @@ const accountSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // What the (simulated) bank really holds. It moves with every payment made in the app, and
+    // also with changes made outside it; "Check balance" brings currentBalance back in line.
+    bankBalance: {
+      type: Number,
+    },
     lastBalanceCheckDate: {
       type: Date,
       default: Date.now,

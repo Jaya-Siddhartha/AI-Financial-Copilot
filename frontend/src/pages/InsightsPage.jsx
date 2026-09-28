@@ -55,7 +55,8 @@ export function InsightsPage({ data }) {
             <ProjectionChart days={projected7Days} emiLine={metrics.totalUpcomingEMI} />
             <Help>
               Each point is your expected balance at the end of that day. We take away about {inr(metrics.dailyBurnRate)} a day
-              (your usual spending over the last 30 days) and any EMI due that day. The dashed line is the money your EMIs need.
+              (your usual spending over the last 30 days, not counting one-off payments over {inr(metrics.oneOffThreshold)}, rent
+              or EMIs) and any EMI due that day. The dashed line is the money your EMIs need.
               If a point falls below it, you could be short when the EMI is due.
             </Help>
           </section>
@@ -79,14 +80,16 @@ export function InsightsPage({ data }) {
               <div className="calc-row">
                 <span>
                   Everyday spending until then
-                  <span className="calc-note">{inr(metrics.dailyBurnRate)} a day × {days} day{days === 1 ? '' : 's'}</span>
+                  <span className="calc-note">
+                    {nextEmi ? `${inr(metrics.dailyBurnRate)} a day × ${days} day${days === 1 ? '' : 's'}` : 'Not needed: all EMIs are paid'}
+                  </span>
                 </span>
                 <span>− {inr(metrics.expectedNormalExpenses)}</span>
               </div>
               <div className="calc-row">
                 <span>
                   Safety cushion
-                  <span className="calc-note">Kept aside for surprises</span>
+                  <span className="calc-note">{nextEmi ? 'Kept aside for surprises' : 'Not needed: all EMIs are paid'}</span>
                 </span>
                 <span>− {inr(metrics.safetyReserve)}</span>
               </div>

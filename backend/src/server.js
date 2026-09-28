@@ -3,7 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { connectDB } from './config/db.js';
+import { connectDB, isMongooseConnected } from './config/db.js';
 import accountRoutes from './routes/accountRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import emiRoutes from './routes/emiRoutes.js';
@@ -56,6 +56,9 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
     service: 'FinCopilot Backend API',
+    // 'temporary' means each serverless copy keeps its own short-lived data (no MONGODB_URI on
+    // Vercel/Lambda), so the frontend runs the demo in the browser instead.
+    storage: isMongooseConnected ? 'database' : process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME ? 'temporary' : 'file',
     timestamp: new Date().toISOString(),
   });
 });

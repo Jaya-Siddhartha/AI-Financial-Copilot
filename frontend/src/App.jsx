@@ -274,7 +274,7 @@ export default function App() {
       case 'profile':
         return <ProfilePage data={data} accounts={accounts} activeUserId={data.user.id} actions={actions} settings={settings} />;
       default:
-        return <HomePage data={data} contacts={contacts} actions={actions} settings={settings} />;
+        return <HomePage data={data} actions={actions} settings={settings} />;
     }
   };
 

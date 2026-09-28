@@ -173,12 +173,14 @@ export const dataService = {
     if (isMongooseConnected) {
       const { balanceDelta = 0, creditedDelta = 0, debitedDelta = 0, requireFunds = 0 } = deltas;
       const filter = { _id: accountId };
-      if (requireFunds) filter.currentBalance = { $gte: requireFunds };
-      return await Account.findOneAndUpdate(
-        filter,
-        { $inc: { currentBalance: balanceDelta, totalCredited: creditedDelta, totalDebited: debitedDelta } },
-        { new: true }
-      );
+      if (requireFunds) {
+        filter.currentBalance = { $gte: requireFunds };
+        filter.$or = [{ bankBalance: { $gte: requireFunds } }, { bankBalance: { $exists: false } }, { bankBalance: null }];
+      }
+      const current = await Account.findById(accountId).lean();
+      const inc = { currentBalance: balanceDelta, totalCredited: creditedDelta, totalDebited: debitedDelta };
+      if (current && typeof current.bankBalance === 'number') inc.bankBalance = balanceDelta;
+      return await Account.findOneAndUpdate(filter, { $inc: inc }, { new: true });
     }
     return await memoryStore.adjustAccountBalance(accountId, deltas);
   },
@@ -252,10 +254,7 @@ export const dataService = {
       debitedDelta: amt,
       requireFunds: amt,
     });
-    if (!updatedSender) {
-      const available = Number(senderAccount.currentBalance) || 0;
-      throw httpError(400, `Insufficient balance. Available balance is ₹${available.toLocaleString('en-IN')}.`);
-    }
+    if (!updatedSender) throw this.fundsError(senderAccount, amt);
 
     const displayRecipient = recipientUser ? recipientUser.name : recipientName;
     const nowIso = new Date().toISOString();
@@ -308,7 +307,19 @@ export const dataService = {
     };
   },
 
-  // BALANCE VERIFICATION: a correct PIN resets the "verified" baseline to the current balance.
+  // Explains a refused debit: the app's balance is too low, or the bank's real balance is
+  // (money moved outside the app since the last balance check).
+  fundsError(account, amount) {
+    const app = Number(account.currentBalance) || 0;
+    if (app >= amount) {
+      return httpError(400, 'Your bank says there is not enough money in your account. Check your bank balance: money may have been spent outside this app.');
+    }
+    return httpError(400, `Not enough balance. You have ₹${app.toLocaleString('en-IN')}.`);
+  },
+
+  // BALANCE CHECK: asks the (simulated) bank for the real balance. If money moved outside the
+  // app, the difference is recorded as a "Bank balance update" entry and the app balance is
+  // corrected, so the balance always equals the last bank figure plus in-app payments since.
   async verifyBankBalance(userId, enteredPin) {
     const user = await this.getUserById(userId);
     if (!user) throw httpError(404, 'User account not found.');
@@ -318,16 +329,40 @@ export const dataService = {
     const account = await this.getAccountByUserId(idOf(user));
     if (!account) throw httpError(404, 'Bank account not found.');
 
+    const appBalance = Number(account.currentBalance) || 0;
+    const bankBalance = Number(account.bankBalance ?? appBalance);
+    const difference = Math.round((bankBalance - appBalance) * 100) / 100;
     const nowIso = new Date().toISOString();
+
+    if (difference !== 0) {
+      await this.addTransaction({
+        accountId: idOf(account),
+        userId: idOf(user),
+        title: difference > 0 ? 'Bank balance update (money added outside this app)' : 'Bank balance update (money spent outside this app)',
+        merchant: account.bankName || 'Your bank',
+        category: CATEGORIES.BANK_UPDATE,
+        type: difference > 0 ? 'credit' : 'debit',
+        amount: Math.abs(difference),
+        description: 'Found when you checked your bank balance',
+        status: 'completed',
+        paymentMethod: 'Direct Bank Transfer',
+        date: nowIso,
+      });
+    }
+
     await this.updateAccountBalances(idOf(account), {
-      verifiedBalance: account.currentBalance,
+      currentBalance: bankBalance,
+      bankBalance,
+      verifiedBalance: bankBalance,
       lastBalanceCheckDate: nowIso,
     });
 
     return {
       success: true,
-      verifiedBalance: account.currentBalance,
-      currentBalance: account.currentBalance,
+      verifiedBalance: bankBalance,
+      currentBalance: bankBalance,
+      previousAppBalance: appBalance,
+      difference,
       lastBalanceCheckDate: nowIso,
       bankName: account.bankName || 'Simulated Bank (UPI)',
       accountNumberMasked: account.accountNumberMasked || '•••• 4092',

@@ -63,6 +63,10 @@ const emiSchema = new mongoose.Schema(
     lastPaidDate: {
       type: Date,
     },
+    // The latest due date that has been paid.
+    paidThroughDate: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

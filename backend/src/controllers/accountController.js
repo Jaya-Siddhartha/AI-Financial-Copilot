@@ -152,6 +152,7 @@ export const getDashboardData = async (req, res) => {
           overdueCount: analysis.overdueCount,
           dailyBurnRate: analysis.dailyBurnRate,
           discretionarySpend: analysis.discretionarySpend,
+          oneOffThreshold: analysis.oneOffThreshold,
           expectedNormalExpenses: analysis.expectedNormalExpenses,
           safetyReserve: analysis.safetyReserve,
           riskReason: analysis.riskReason,

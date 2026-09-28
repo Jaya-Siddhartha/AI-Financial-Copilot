@@ -3,6 +3,7 @@ import { Check, ChevronRight, Copy, History, KeyRound, Landmark, Lightbulb, QrCo
 import { Avatar } from '../components/ui/Avatar';
 import { bankName, formatShortDate, inr } from '../lib/format';
 import { TEXT_SIZES, THEMES } from '../lib/settings';
+import { dataMode } from '../services/api';
 
 function Choice({ label, icon: Icon, options, value, onChange }) {
   return (
@@ -154,7 +155,7 @@ export function ProfilePage({ data, accounts, activeUserId, actions, settings })
         </ol>
         <p className="muted small" style={{ marginTop: 16 }}>
           This is a demo. Accounts, banks and payments are pretend, and no real money moves.
-          {__BROWSER_DEMO__ && ' Everything runs in this browser and is saved only on this device.'}
+          {dataMode() === 'browser' && ' This copy runs in your browser and saves data only on this device, so payments update instantly.'}
         </p>
       </section>
     </div>

@@ -67,7 +67,9 @@ test('demo scenario: payments, balance checks, EMIs and risk status', async () =
   const a = await dashboard('user_siddhartha');
   assert.equal(a.user.name, 'Siddhartha');
   assert.equal(a.metrics.currentBalance, 50000);
-  assert.equal(a.metrics.verifiedBalance, 50000);
+  // Last bank check showed ₹50,800; ₹800 was spent in the app after it.
+  assert.equal(a.metrics.verifiedBalance, 50800);
+  assert.equal(a.metrics.verifiedBalance - a.metrics.debitsSinceCheck + a.metrics.creditsSinceCheck, a.metrics.currentBalance);
   const b = await dashboard('user_rahul');
   assert.equal(b.user.name, 'Rahul Sharma');
   assert.equal(b.metrics.currentBalance, 30000);
@@ -88,21 +90,26 @@ test('demo scenario: payments, balance checks, EMIs and risk status', async () =
   const rahulTxs = (await call('GET', '/transactions?userId=user_rahul')).body.data;
   assert.ok(rahulTxs.some((t) => t.type === 'credit' && t.amount === 5000 && t.title.includes('Siddhartha')));
 
-  // 8. Balance check with PIN sets the verified baseline
+  // 8. Balance check finds the ₹2,000 cash withdrawal made outside the app and corrects the balance
   const check = await call('POST', '/account/check-balance', { userId: 'user_siddhartha', upiPin: '1234' });
   assert.equal(check.status, 200);
-  assert.equal(check.body.data.verifiedBalance, 45000);
-
-  // 9. Later payments change the estimate but not the verified baseline
-  await pay({ recipientPhone: '9823456781', amount: 2000 });
+  assert.equal(check.body.data.verifiedBalance, 43000);
+  assert.equal(check.body.data.difference, -2000);
   let s = await dashboard('user_siddhartha');
   assert.equal(s.metrics.currentBalance, 43000);
-  assert.equal(s.metrics.verifiedBalance, 45000);
+  assert.ok(s.recentTransactions.some((t) => t.category === 'Bank balance update' && t.amount === 2000));
 
-  // 10. Re-checking moves the baseline
-  await call('POST', '/account/check-balance', { userId: 'user_siddhartha', upiPin: '1234' });
+  // 9. Later payments change the app balance but not the last bank figure
+  await pay({ recipientPhone: '9823456781', amount: 2000 });
   s = await dashboard('user_siddhartha');
+  assert.equal(s.metrics.currentBalance, 41000);
   assert.equal(s.metrics.verifiedBalance, 43000);
+
+  // 10. Re-checking with nothing changed outside the app keeps the balance and moves the baseline
+  const again = await call('POST', '/account/check-balance', { userId: 'user_siddhartha', upiPin: '1234' });
+  assert.equal(again.body.data.difference, 0);
+  s = await dashboard('user_siddhartha');
+  assert.equal(s.metrics.verifiedBalance, 41000);
 
   // 11. Adding an EMI raises upcoming obligations
   const emi = await call('POST', '/emi', {
@@ -115,14 +122,14 @@ test('demo scenario: payments, balance checks, EMIs and risk status', async () =
   assert.equal(emi.status, 201);
   assert.equal((await dashboard('user_siddhartha')).metrics.totalUpcomingEMI, 35000);
 
-  // 12. A large payment leaves too little for the EMIs
+  // 12. A large payment leaves too little for the EMIs (₹31,000 left, ₹35,000 due)
   await pay({ recipientPhone: '9988776655', amount: 10000 });
   assert.equal((await dashboard('user_siddhartha')).metrics.riskStatus, 'HIGH RISK');
 
   // 13. Receiving money restores SAFE
   await call('POST', '/transactions/receive', { userId: 'user_siddhartha', amount: 25000, senderName: 'Bonus Credit' });
   s = await dashboard('user_siddhartha');
-  assert.equal(s.metrics.currentBalance, 58000);
+  assert.equal(s.metrics.currentBalance, 56000);
   assert.equal(s.metrics.riskStatus, 'SAFE');
 
   // 14. Paying an EMI marks it paid and records an "EMI & Loans" debit
@@ -287,4 +294,33 @@ test('responses carry basic security headers', async () => {
   const res = await fetch(`${baseUrl}/health`);
   assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(res.headers.get('x-frame-options'), 'DENY');
+});
+
+test('checking the balance picks up money added outside the app', async () => {
+  await reset();
+  const res = await call('POST', '/account/check-balance', { userId: 'user_rahul', upiPin: '1234' });
+  assert.equal(res.body.data.difference, 500);
+  const d = await dashboard('user_rahul');
+  assert.equal(d.metrics.currentBalance, 30500);
+  assert.equal(d.metrics.verifiedBalance, 30500);
+});
+
+test('the bank refuses a payment its real balance cannot cover', async () => {
+  await reset();
+  // The app thinks ₹50,000 is available, but the bank holds ₹48,000 (a cash withdrawal outside the app).
+  await call('POST', '/transactions/receive', { userId: 'user_siddhartha', amount: 60000, senderName: 'x' });
+  await call('POST', '/transactions/payment', { userId: 'user_siddhartha', recipientPhone: '9123456780', amount: 100000, upiPin: '1234' });
+  const res = await pay({ amount: 9000 });
+  assert.equal(res.status, 400);
+  assert.match(res.body.message, /bank/i);
+  assert.equal((await dashboard('user_siddhartha')).metrics.currentBalance, 10000, 'nothing was debited');
+});
+
+test('money sent from one demo account shows up on the other straight away', async () => {
+  await reset();
+  const before = (await dashboard('user_rahul')).metrics.currentBalance;
+  const res = await pay({ amount: 1234 });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.data.recipientBalance, before + 1234);
+  assert.equal((await dashboard('user_rahul')).metrics.currentBalance, before + 1234);
 });

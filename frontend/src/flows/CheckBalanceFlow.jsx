@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sheet } from '../components/ui/Sheet';
 import { PinPad } from '../components/ui/PinPad';
 import { Success } from '../components/ui/Success';
+import { Alert } from '../components/ui/Alert';
 import { checkBankBalanceApi } from '../services/api';
 import { apiError, bankLabel, bankName, formatDateTime, inr } from '../lib/format';
 
@@ -36,14 +37,25 @@ export function CheckBalanceFlow({ user, account, onClose, onVerified }) {
         }
       >
         <Success
-          title="Available balance"
+          title="Balance at your bank"
           amount={inr(result.verifiedBalance)}
           subtitle={bankLabel(result)}
           details={[
             ['Checked on', formatDateTime(result.lastBalanceCheckDate)],
-            ['Note', 'Later payments are tracked from this balance'],
+            ['Balance this app had worked out', inr(result.previousAppBalance ?? result.verifiedBalance)],
           ]}
         />
+        <div style={{ marginTop: 14 }}>
+          {!result.difference ? (
+            <Alert tone="green">Your app balance matches your bank. Nothing changed outside this app.</Alert>
+          ) : (
+            <Alert tone="amber">
+              Your bank shows {inr(Math.abs(result.difference))} {result.difference < 0 ? 'less' : 'more'} than this app knew about
+              {result.difference < 0 ? ' (money spent outside this app, like a cash withdrawal)' : ' (money added outside this app, like interest)'}.
+              Your balance is now updated, and it is listed in your payments as a bank balance update.
+            </Alert>
+          )}
+        </div>
       </Sheet>
     );
   }

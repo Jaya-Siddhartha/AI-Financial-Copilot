@@ -1062,7 +1062,62 @@ ol {
   color: var(--text);
 }
 
+/* ---------- Balance card ---------- */
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.balance-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  line-height: 1.15;
+}
+
+.balance-note {
+  margin-top: 0.625rem;
+  color: var(--text-2);
+}
+
+.disclaimer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--amber-soft);
+  border: 1px dashed var(--amber);
+  font-size: 0.9375rem;
+}
+
+.disclaimer svg {
+  flex-shrink: 0;
+  color: var(--amber);
+  margin-top: 0.125rem;
+}
+
 /* ---------- Action tiles ---------- */
+
+.tiles.tiles-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 560px) {
+  .tiles.tiles-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.tiles-4 .tile {
+  background: var(--surface);
+  min-height: 7.5rem;
+  font-size: 1.0625rem;
+}
 
 .tiles {
   display: grid;

@@ -123,11 +123,7 @@ export const payEMI = async (req, res) => {
     });
 
     if (!updatedAccount) {
-      const currentBalance = Number(account.currentBalance) || 0;
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient balance (₹${currentBalance.toLocaleString('en-IN')}) to pay EMI of ₹${emiAmount.toLocaleString('en-IN')}.`,
-      });
+      throw dataService.fundsError(account, emiAmount);
     }
 
     const tx = await dataService.addTransaction({
@@ -149,6 +145,7 @@ export const payEMI = async (req, res) => {
       status: 'paid_this_cycle',
       remainingInstallments: remaining,
       lastPaidDate: new Date().toISOString(),
+      paidThroughDate: targetEmi.coversDueDate,
     });
 
     return res.status(200).json({

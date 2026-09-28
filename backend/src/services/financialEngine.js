@@ -6,6 +6,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const SPENDING_WINDOW_DAYS = 30;
 export const MIN_DAILY_BURN = 300;
 export const SAFETY_RESERVE = 2000;
+// A single payment bigger than this is a one-off (a big transfer, a purchase), not everyday
+// spending, so it is left out of the usual daily spend: max(₹5,000, 20% of monthly income).
+export const oneOffThreshold = (monthlyIncome) => Math.max(5000, Math.round((Number(monthlyIncome) || 0) * 0.2));
 
 // An EMI paid up to PAID_CYCLE_DAYS before a due date counts as paid for that due date.
 const PAID_CYCLE_DAYS = 25;
@@ -26,8 +29,12 @@ export const getDaysUntil = (dueDay, now = new Date()) => {
   return Math.round((due - today) / DAY_MS);
 };
 
-const paidFor = (emi, dueDate) =>
-  Boolean(emi.lastPaidDate) && new Date(emi.lastPaidDate).getTime() > dueDate.getTime() - PAID_CYCLE_DAYS * DAY_MS;
+// Each EMI payment records the due date it covers (paidThroughDate), oldest unpaid first.
+// Records from before that field existed fall back to "paid within 25 days before the due date".
+const paidFor = (emi, dueDate) => {
+  if (emi.paidThroughDate) return startOfDay(new Date(emi.paidThroughDate)) >= dueDate;
+  return Boolean(emi.lastPaidDate) && new Date(emi.lastPaidDate).getTime() > dueDate.getTime() - PAID_CYCLE_DAYS * DAY_MS;
+};
 
 export const isPaidThisCycle = (emi, now = new Date()) => {
   const today = startOfDay(now);
@@ -81,6 +88,8 @@ export const enrichEmi = (emi, now = new Date()) => {
     // An overdue EMI is due now.
     daysRemaining: overdue ? 0 : daysUntilNext,
     daysOverdue,
+    // The due date the next payment of this EMI will cover.
+    coversDueDate: (overdue ? prevDue : nextDue).toISOString(),
     reminderBadge,
     urgencyLevel,
   };
@@ -93,7 +102,8 @@ export const isFixedCategory = (category = '') => {
     cat.includes('housing') ||
     cat.includes('rent') ||
     cat.includes('emi') ||
-    cat.includes('loan')
+    cat.includes('loan') ||
+    cat.includes('bank balance')
   );
 };
 
@@ -115,6 +125,8 @@ export const analyzeFinancialState = ({
 
   // 1. Transactions since the last balance check, and spending in the recent window
   const checkTime = new Date(lastBalanceCheckDate).getTime();
+  const monthlyIncome = Number(user.monthlyIncome || 50000);
+  const bigPayment = oneOffThreshold(monthlyIncome);
   const windowStart = now.getTime() - SPENDING_WINDOW_DAYS * DAY_MS;
   let creditsSinceCheck = 0;
   let debitsSinceCheck = 0;
@@ -133,7 +145,7 @@ export const analyzeFinancialState = ({
         totalDebitSum += amt;
         categoryMap[tx.category] = (categoryMap[tx.category] || 0) + amt;
         if (!isFixedCategory(tx.category)) {
-          nonFixedDebitsSum += amt;
+          if (amt <= bigPayment) nonFixedDebitsSum += amt;
         } else if (tx.category === CATEGORIES.HOUSING) {
           housingDebitsSum += amt;
         }
@@ -175,9 +187,12 @@ export const analyzeFinancialState = ({
 
   // 3. Daily Discretionary Burn Rate & Safety Cushion
   // Everyday (non-fixed) spending over the last 30 days, per day.
+  // Money is only set aside to protect an EMI. With every EMI paid for the month, the whole
+  // balance is safe to spend.
+  const hasUnpaid = unpaidEMIs.length > 0;
   const dailyBurnRate = Math.max(MIN_DAILY_BURN, Math.round(nonFixedDebitsSum / SPENDING_WINDOW_DAYS));
-  const expectedNormalExpenses = Math.round(dailyBurnRate * Math.max(1, daysUntilNextEMI));
-  const safetyReserve = SAFETY_RESERVE;
+  const expectedNormalExpenses = hasUnpaid ? Math.round(dailyBurnRate * Math.max(1, daysUntilNextEMI)) : 0;
+  const safetyReserve = hasUnpaid ? SAFETY_RESERVE : 0;
   const totalObligations = totalUpcomingEMIAmount + expectedNormalExpenses;
   const safeToSpend = Math.max(0, currentBalance - totalUpcomingEMIAmount - expectedNormalExpenses - safetyReserve);
   const balanceAfterObligations = currentBalance - totalUpcomingEMIAmount;
@@ -192,8 +207,8 @@ export const analyzeFinancialState = ({
 
   if (unpaidEMIs.length === 0) {
     status = 'SAFE';
-    summary = 'You have no EMIs left to pay this month. Your balance is free to use.';
-    advice = 'You are in good shape. Keep a little aside for surprises.';
+    summary = 'All your EMIs for this month are paid. Your whole balance is free to use.';
+    advice = `You can spend up to ${rupees(safeToSpend)}. Your next EMIs will be checked again when they come due.`;
     riskReason = 'No EMI payments are pending this month.';
   } else if (currentBalance < totalUpcomingEMIAmount) {
     status = 'HIGH RISK';
@@ -261,7 +276,6 @@ export const analyzeFinancialState = ({
   // 6. Income & Salary Cycle Replenishment
   const salaryDate = user.salaryDate || 1;
   const daysUntilSalary = getDaysUntil(salaryDate, now);
-  const monthlyIncome = Number(user.monthlyIncome || 50000);
 
   // 7. Multi-Horizon Forecast (30, 60, 90 Days). Ending balances can be negative: that is a shortfall.
   const monthlyEmiTotal = enrichedEmis
@@ -323,6 +337,7 @@ export const analyzeFinancialState = ({
     overdueCount: overdueEMIs.length,
     dailyBurnRate,
     discretionarySpend: nonFixedDebitsSum,
+    oneOffThreshold: bigPayment,
     expectedNormalExpenses,
     safetyReserve,
     totalObligations,

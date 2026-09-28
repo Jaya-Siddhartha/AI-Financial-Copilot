@@ -75,8 +75,11 @@ export const buildDemoSeed = (now = new Date()) => {
         accountNumberMasked: '•••• 4092',
         startingBalance: 50000,
         currentBalance: 50000,
-        verifiedBalance: 50000,
+        // Last check (yesterday 10:30) showed ₹50,800; ₹800 was spent in the app since then.
+        verifiedBalance: 50800,
         lastBalanceCheckDate: makeDate(1, 10, 30),
+        // The bank also has a ₹2,000 cash withdrawal that was not made through the app.
+        bankBalance: 48000,
         totalCredited: 50000,
         totalDebited: 18000,
         currency: '₹',
@@ -91,6 +94,8 @@ export const buildDemoSeed = (now = new Date()) => {
         currentBalance: 30000,
         verifiedBalance: 30000,
         lastBalanceCheckDate: makeDate(1, 11, 45),
+        // The bank has credited ₹500 of interest that the app does not know about yet.
+        bankBalance: 30500,
         totalCredited: 30000,
         totalDebited: 3000,
         currency: '₹',

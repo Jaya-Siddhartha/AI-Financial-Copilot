@@ -148,6 +148,7 @@ export const memoryStore = {
       _id: newId,
       id: newId,
       verifiedBalance: accountDoc.verifiedBalance !== undefined ? accountDoc.verifiedBalance : accountDoc.currentBalance,
+      bankBalance: accountDoc.bankBalance !== undefined ? accountDoc.bankBalance : accountDoc.currentBalance,
       lastBalanceCheckDate: accountDoc.lastBalanceCheckDate || new Date().toISOString(),
       ...accountDoc,
       createdAt: new Date().toISOString(),
@@ -266,8 +267,10 @@ export const memoryStore = {
     const data = loadData();
     const account = data.accounts.find((a) => String(a._id || a.id) === String(accountId));
     if (!account) return null;
-    if (requireFunds && Number(account.currentBalance) < requireFunds) return null;
+    const bank = account.bankBalance ?? account.currentBalance;
+    if (requireFunds && (Number(account.currentBalance) < requireFunds || Number(bank) < requireFunds)) return null;
     account.currentBalance = Number(account.currentBalance) + balanceDelta;
+    account.bankBalance = Number(bank) + balanceDelta;
     account.totalCredited = (Number(account.totalCredited) || 0) + creditedDelta;
     account.totalDebited = (Number(account.totalDebited) || 0) + debitedDelta;
     account.updatedAt = new Date().toISOString();

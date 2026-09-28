@@ -8,7 +8,7 @@ import { analyzeFinancialState, enrichEmi, getDaysUntil } from '../../../backend
 import { autoCategorizeRecipient, CATEGORIES, CATEGORY_LIST } from '../../../backend/src/config/categories.js';
 import { buildDemoSeed } from '../../../backend/src/services/seedData.js';
 
-const STORAGE_KEY = 'fincopilot.browserDemo.v1';
+const STORAGE_KEY = 'fincopilot.browserDemo.v2';
 const MAX_PIN_ATTEMPTS = 3;
 const PIN_LOCK_MINUTES = 5;
 const MAX_UPI_AMOUNT = 100000;
@@ -84,13 +84,21 @@ const addTransaction = (tx) => {
 };
 
 const adjustBalance = (account, { balanceDelta = 0, creditedDelta = 0, debitedDelta = 0, requireFunds = 0 }) => {
-  if (requireFunds && account.currentBalance < requireFunds) return null;
+  const bank = account.bankBalance ?? account.currentBalance;
+  if (requireFunds && (account.currentBalance < requireFunds || bank < requireFunds)) return null;
   account.currentBalance += balanceDelta;
+  account.bankBalance = bank + balanceDelta;
   account.totalCredited = (account.totalCredited || 0) + creditedDelta;
   account.totalDebited = (account.totalDebited || 0) + debitedDelta;
   account.updatedAt = nowIso();
   return account;
 };
+
+// Same wording as dataService.fundsError on the server.
+const fundsError = (account, amount) =>
+  account.currentBalance >= amount
+    ? new ApiError(400, 'Your bank says there is not enough money in your account. Check your bank balance: money may have been spent outside this app.')
+    : new ApiError(400, `Not enough balance. You have ₹${account.currentBalance.toLocaleString('en-IN')}.`);
 
 const assertUpiPin = (user, enteredPin, wrongPinMessage) => {
   const now = Date.now();
@@ -188,6 +196,7 @@ const routes = {
           overdueCount: a.overdueCount,
           dailyBurnRate: a.dailyBurnRate,
           discretionarySpend: a.discretionarySpend,
+          oneOffThreshold: a.oneOffThreshold,
           expectedNormalExpenses: a.expectedNormalExpenses,
           safetyReserve: a.safetyReserve,
           riskReason: a.riskReason,
@@ -219,16 +228,36 @@ const routes = {
     if (!user) throw new ApiError(404, 'User account not found.');
     assertUpiPin(user, body.upiPin, 'Incorrect UPI PIN.');
     const account = accountOf(user.id);
-    account.verifiedBalance = account.currentBalance;
-    account.lastBalanceCheckDate = nowIso();
+    const appBalance = account.currentBalance;
+    const bank = account.bankBalance ?? appBalance;
+    const difference = Math.round((bank - appBalance) * 100) / 100;
+    const stamp = nowIso();
+    if (difference !== 0) {
+      addTransaction({
+        accountId: account.id,
+        userId: user.id,
+        title: difference > 0 ? 'Bank balance update (money added outside this app)' : 'Bank balance update (money spent outside this app)',
+        merchant: account.bankName || 'Your bank',
+        category: CATEGORIES.BANK_UPDATE,
+        type: difference > 0 ? 'credit' : 'debit',
+        amount: Math.abs(difference),
+        description: 'Found when you checked your bank balance',
+        status: 'completed',
+        paymentMethod: 'Direct Bank Transfer',
+        date: stamp,
+      });
+    }
+    Object.assign(account, { currentBalance: bank, bankBalance: bank, verifiedBalance: bank, lastBalanceCheckDate: stamp });
     save();
     return {
       success: true,
       message: 'Bank balance verified successfully.',
       data: {
         success: true,
-        verifiedBalance: account.currentBalance,
-        currentBalance: account.currentBalance,
+        verifiedBalance: bank,
+        currentBalance: bank,
+        previousAppBalance: appBalance,
+        difference,
         lastBalanceCheckDate: account.lastBalanceCheckDate,
         bankName: account.bankName,
         accountNumberMasked: account.accountNumberMasked,
@@ -302,7 +331,7 @@ const routes = {
     });
 
     if (!adjustBalance(senderAccount, { balanceDelta: -amt, debitedDelta: amt, requireFunds: amt })) {
-      throw new ApiError(400, `Insufficient balance. Available balance is ₹${senderAccount.currentBalance.toLocaleString('en-IN')}.`);
+      throw fundsError(senderAccount, amt);
     }
 
     const display = recipient ? recipient.name : finalRecipient;
@@ -446,7 +475,7 @@ const routes = {
     assertUpiPin(user, body.upiPin, 'Incorrect UPI PIN. EMI not paid.');
     const amount = Number(emi.amount);
     if (!adjustBalance(account, { balanceDelta: -amount, debitedDelta: amount, requireFunds: amount })) {
-      throw new ApiError(400, `Insufficient balance (₹${account.currentBalance.toLocaleString('en-IN')}) to pay EMI of ₹${amount.toLocaleString('en-IN')}.`);
+      throw fundsError(account, amount);
     }
     const tx = addTransaction({
       accountId: account.id,
@@ -461,7 +490,7 @@ const routes = {
       paymentMethod: 'UPI',
     });
     const remaining = Math.max(0, (Number(emi.remainingInstallments) || 12) - 1);
-    Object.assign(stored, { status: 'paid_this_cycle', remainingInstallments: remaining, lastPaidDate: nowIso(), updatedAt: nowIso() });
+    Object.assign(stored, { status: 'paid_this_cycle', remainingInstallments: remaining, lastPaidDate: nowIso(), paidThroughDate: emi.coversDueDate, updatedAt: nowIso() });
     save();
     return {
       success: true,
