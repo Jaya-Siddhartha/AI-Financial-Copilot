@@ -1,15 +1,162 @@
 /* FinCopilot design system
-   Look: "Doomsday" HUD style — near-black with a toxic-lime accent, hazard orange and warning
-   yellow, corner-bracket frames and monospaced labels.
-   Readability rules: every size is in rem (the Text size setting scales the whole app), body
-   text is at least 16px at normal size, and every text colour is at least 4.5:1 on its background. */
+   Six themes, picked in Settings → Appearance. "Purple" (a familiar payments-app look) is the
+   default. Every theme defines the same tokens, and every text colour is at least 4.5:1 on its
+   background (checked with the contrast script in docs). Sizes are in rem so the Text size
+   setting scales the whole app. */
 
-:root,
-:root[data-theme='dark'] {
+:root {
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  --font-display: 'Russo One', 'Inter', system-ui, sans-serif;
+  --topbar-h: 4rem;
+  --bottomnav-h: 4.5rem;
+  --sidebar-w: 16rem;
+}
 
+/* 1. Purple (default): light, with a purple header like popular Indian payment apps. */
+:root,
+:root[data-theme='purple'] {
+  --font-display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --label-spacing: 0.04em;
+  --frame-size: 0px;
+
+  --bg: #f2eff7;
+  --bg-glow: transparent;
+  --bg-grid: transparent;
+  --surface: #ffffff;
+  --surface-2: #f6f3fb;
+  --surface-3: #ebe5f4;
+  --line: #e4ddef;
+  --line-strong: #cbbfe0;
+  --text: #1c1528;
+  --text-2: #463d56;
+  --text-3: #5d5470;
+
+  --accent: #5f259f;
+  --accent-ink: #ffffff;
+  --accent-text: #5f259f;
+  --accent-soft: #efe7fa;
+  --accent-line: #c9b3ea;
+
+  --green: #0f6b41;
+  --green-soft: #e4f5ec;
+  --amber: #8a5a00;
+  --amber-fill: #f5b400;
+  --amber-soft: #fff4d9;
+  --red: #b3261e;
+  --red-fill: #d93a2f;
+  --red-soft: #fdecea;
+  --cushion: #9b8fb0;
+
+  --topbar-bg: #5f259f;
+  --topbar-fg: #ffffff;
+  --topbar-sub: #e3d6f5;
+  --topbar-line: transparent;
+
+  --overlay: rgba(28, 21, 40, 0.5);
+  --shadow: 0 1px 3px rgba(40, 20, 80, 0.08);
+  --shadow-lg: 0 18px 50px rgba(40, 20, 80, 0.22);
+  --radius: 16px;
+  --radius-sm: 12px;
+  color-scheme: light;
+}
+
+/* 2. Light: plain white and blue. */
+:root[data-theme='light'] {
+  --font-display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --label-spacing: 0.04em;
+  --frame-size: 0px;
+  --bg: #f4f6fa;
+  --bg-glow: transparent;
+  --bg-grid: transparent;
+  --surface: #ffffff;
+  --surface-2: #f5f7fb;
+  --surface-3: #e8edf5;
+  --line: #e2e7ef;
+  --line-strong: #c6cfdc;
+  --text: #111827;
+  --text-2: #374151;
+  --text-3: #4b5563;
+  --accent: #1a5fd0;
+  --accent-ink: #ffffff;
+  --accent-text: #1a56c0;
+  --accent-soft: #e7effd;
+  --accent-line: #b5cbf3;
+  --green: #0f6b41;
+  --green-soft: #e4f5ec;
+  --amber: #8a5a00;
+  --amber-fill: #f5b400;
+  --amber-soft: #fff4d9;
+  --red: #b3261e;
+  --red-fill: #d93a2f;
+  --red-soft: #fdecea;
+  --cushion: #9aa4b2;
+  --topbar-bg: #ffffff;
+  --topbar-fg: #111827;
+  --topbar-sub: #4b5563;
+  --topbar-line: #e2e7ef;
+  --overlay: rgba(17, 24, 39, 0.45);
+  --shadow: 0 1px 3px rgba(17, 24, 39, 0.07);
+  --shadow-lg: 0 18px 50px rgba(17, 24, 39, 0.2);
+  --radius: 16px;
+  --radius-sm: 12px;
+  color-scheme: light;
+}
+
+/* 3. Dark: easy on the eyes at night. */
+:root[data-theme='dark'] {
+  --font-display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --label-spacing: 0.04em;
+  --frame-size: 0px;
+  --bg: #0f1115;
+  --bg-glow: transparent;
+  --bg-grid: transparent;
+  --surface: #181b21;
+  --surface-2: #1f232a;
+  --surface-3: #2a2f38;
+  --line: #2c313a;
+  --line-strong: #444b57;
+  --text: #f1f3f6;
+  --text-2: #c9ced6;
+  --text-3: #a3aab5;
+  --accent: #8ab4f8;
+  --accent-ink: #0f1115;
+  --accent-text: #8ab4f8;
+  --accent-soft: rgba(138, 180, 248, 0.14);
+  --accent-line: rgba(138, 180, 248, 0.4);
+  --green: #6ddc9a;
+  --green-soft: rgba(109, 220, 154, 0.13);
+  --amber: #ffcc4d;
+  --amber-fill: #ffcc4d;
+  --amber-soft: rgba(255, 204, 77, 0.13);
+  --red: #ff8a80;
+  --red-fill: #ff6b5e;
+  --red-soft: rgba(255, 107, 94, 0.14);
+  --cushion: #6b7380;
+  --topbar-bg: #181b21;
+  --topbar-fg: #f1f3f6;
+  --topbar-sub: #a3aab5;
+  --topbar-line: #2c313a;
+  --overlay: rgba(0, 0, 0, 0.65);
+  --shadow: none;
+  --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.6);
+  --radius: 16px;
+  --radius-sm: 12px;
+  color-scheme: dark;
+}
+
+/* 4. Doomsday: black with toxic lime, hazard orange and a HUD feel. */
+:root[data-theme='doomsday'] {
+  --font-display: 'Russo One', 'Inter', system-ui, sans-serif;
+  --display-weight: 400;
+  --font-label: 'JetBrains Mono', ui-monospace, monospace;
+  --label-spacing: 0.12em;
+  --frame-size: 18px;
   --bg: #070907;
   --bg-glow: rgba(157, 255, 0, 0.07);
   --bg-grid: rgba(169, 176, 170, 0.045);
@@ -18,17 +165,14 @@
   --surface-3: #1d261b;
   --line: rgba(169, 176, 170, 0.18);
   --line-strong: rgba(169, 176, 170, 0.36);
-
   --text: #f2f5ef;
   --text-2: #cdd3ca;
   --text-3: #a9b0aa;
-
-  --accent: #9dff00; /* fills */
-  --accent-ink: #070907; /* text on accent fills */
-  --accent-text: #9dff00; /* accent used as text */
+  --accent: #9dff00;
+  --accent-ink: #070907;
+  --accent-text: #9dff00;
   --accent-soft: rgba(157, 255, 0, 0.1);
   --accent-line: rgba(157, 255, 0, 0.38);
-
   --green: #9dff00;
   --green-soft: rgba(157, 255, 0, 0.1);
   --amber: #ffd400;
@@ -38,53 +182,103 @@
   --red-fill: #ff6a00;
   --red-soft: rgba(255, 106, 0, 0.13);
   --cushion: #5d6a59;
-
+  --topbar-bg: rgba(7, 9, 7, 0.9);
+  --topbar-fg: #f2f5ef;
+  --topbar-sub: #a9b0aa;
+  --topbar-line: rgba(169, 176, 170, 0.18);
   --overlay: rgba(2, 4, 2, 0.74);
+  --shadow: none;
   --shadow-lg: 0 18px 60px rgba(0, 0, 0, 0.6);
-
   --radius: 6px;
   --radius-sm: 4px;
-
-  --topbar-h: 4rem;
-  --bottomnav-h: 4.5rem;
-  --sidebar-w: 16rem;
-
   color-scheme: dark;
 }
 
-:root[data-theme='light'] {
-  --bg: #f4f6f0;
-  --bg-glow: rgba(120, 200, 0, 0.12);
-  --bg-grid: rgba(20, 30, 15, 0.04);
+/* 5. Saffron: navy header with saffron and green, like the national UPI app. */
+:root[data-theme='saffron'] {
+  --font-display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --label-spacing: 0.04em;
+  --frame-size: 0px;
+  --bg: #fdf8f1;
+  --bg-glow: transparent;
+  --bg-grid: transparent;
   --surface: #ffffff;
-  --surface-2: #eef2e8;
-  --surface-3: #e2e8da;
-  --line: rgba(20, 30, 15, 0.14);
-  --line-strong: rgba(20, 30, 15, 0.3);
+  --surface-2: #fdf6ec;
+  --surface-3: #f5eadb;
+  --line: #efe2cf;
+  --line-strong: #dcc7a8;
+  --text: #1d2233;
+  --text-2: #3d4356;
+  --text-3: #555b6e;
+  --accent: #e8710a;
+  --accent-ink: #1d2233;
+  --accent-text: #a8520a;
+  --accent-soft: #fdeedd;
+  --accent-line: #f4c28f;
+  --green: #0c6b0c;
+  --green-soft: #e4f4e4;
+  --amber: #8a5a00;
+  --amber-fill: #f5b400;
+  --amber-soft: #fff4d9;
+  --red: #b3261e;
+  --red-fill: #d93a2f;
+  --red-soft: #fdecea;
+  --cushion: #b3a48f;
+  --topbar-bg: #1c2a5e;
+  --topbar-fg: #ffffff;
+  --topbar-sub: #d5dcf3;
+  --topbar-line: transparent;
+  --overlay: rgba(29, 34, 51, 0.5);
+  --shadow: 0 1px 3px rgba(60, 40, 10, 0.08);
+  --shadow-lg: 0 18px 50px rgba(60, 40, 10, 0.22);
+  --radius: 14px;
+  --radius-sm: 10px;
+  color-scheme: light;
+}
 
-  --text: #0b0f0a;
-  --text-2: #30382e;
-  --text-3: #4d564a;
-
-  --accent: #9dff00;
-  --accent-ink: #070907;
-  --accent-text: #2d6600;
-  --accent-soft: rgba(110, 190, 0, 0.16);
-  --accent-line: rgba(60, 120, 0, 0.45);
-
-  --green: #2d6600;
-  --green-soft: rgba(110, 190, 0, 0.16);
-  --amber: #715500;
-  --amber-fill: #ffd400;
-  --amber-soft: rgba(255, 200, 0, 0.2);
-  --red: #b83a06;
-  --red-fill: #ff6a00;
-  --red-soft: rgba(255, 106, 0, 0.13);
-  --cushion: #9aa596;
-
-  --overlay: rgba(10, 15, 8, 0.5);
-  --shadow-lg: 0 18px 50px rgba(10, 15, 8, 0.22);
-
+/* 6. Ocean: navy and sky blue. */
+:root[data-theme='ocean'] {
+  --font-display: 'Inter', system-ui, sans-serif;
+  --display-weight: 800;
+  --font-label: 'Inter', system-ui, sans-serif;
+  --label-spacing: 0.04em;
+  --frame-size: 0px;
+  --bg: #eef7fc;
+  --bg-glow: transparent;
+  --bg-grid: transparent;
+  --surface: #ffffff;
+  --surface-2: #f2f9fd;
+  --surface-3: #e0f0f9;
+  --line: #d9ebf5;
+  --line-strong: #b4d6e8;
+  --text: #0b2340;
+  --text-2: #2b4460;
+  --text-3: #445d78;
+  --accent: #00a3e0;
+  --accent-ink: #062a4d;
+  --accent-text: #00699a;
+  --accent-soft: #e0f4fc;
+  --accent-line: #9fd9f1;
+  --green: #0f6b41;
+  --green-soft: #e4f5ec;
+  --amber: #8a5a00;
+  --amber-fill: #f5b400;
+  --amber-soft: #fff4d9;
+  --red: #b3261e;
+  --red-fill: #d93a2f;
+  --red-soft: #fdecea;
+  --cushion: #98b3c6;
+  --topbar-bg: #002e6e;
+  --topbar-fg: #ffffff;
+  --topbar-sub: #cfe3ff;
+  --topbar-line: transparent;
+  --overlay: rgba(11, 35, 64, 0.5);
+  --shadow: 0 1px 3px rgba(0, 46, 110, 0.08);
+  --shadow-lg: 0 18px 50px rgba(0, 46, 110, 0.22);
+  --radius: 14px;
+  --radius-sm: 10px;
   color-scheme: light;
 }
 
@@ -195,10 +389,10 @@ ol {
 /* Monospaced, spaced-out label like "05 — CHOOSE YOUR TRACK" on the reference site. */
 .eyebrow {
   display: inline-block;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--label-spacing);
   text-transform: uppercase;
   color: var(--accent-text);
 }
@@ -215,14 +409,14 @@ ol {
   inset: -1px;
   pointer-events: none;
   background:
-    linear-gradient(var(--frame), var(--frame)) top left / 18px 2px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) top left / 2px 18px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) top right / 18px 2px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) top right / 2px 18px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) bottom left / 18px 2px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) bottom left / 2px 18px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) bottom right / 18px 2px no-repeat,
-    linear-gradient(var(--frame), var(--frame)) bottom right / 2px 18px no-repeat;
+    linear-gradient(var(--frame), var(--frame)) top left / var(--frame-size) 2px no-repeat,
+    linear-gradient(var(--frame), var(--frame)) top left / 2px var(--frame-size) no-repeat,
+    linear-gradient(var(--frame), var(--frame)) top right / var(--frame-size) 2px no-repeat,
+    linear-gradient(var(--frame), var(--frame)) top right / 2px var(--frame-size) no-repeat,
+    linear-gradient(var(--frame), var(--frame)) bottom left / var(--frame-size) 2px no-repeat,
+    linear-gradient(var(--frame), var(--frame)) bottom left / 2px var(--frame-size) no-repeat,
+    linear-gradient(var(--frame), var(--frame)) bottom right / var(--frame-size) 2px no-repeat,
+    linear-gradient(var(--frame), var(--frame)) bottom right / 2px var(--frame-size) no-repeat;
 }
 
 .tone-amber {
@@ -248,10 +442,11 @@ ol {
   z-index: 30;
   height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   padding: env(safe-area-inset-top, 0px) 1rem 0;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  background: var(--topbar-bg);
+  color: var(--topbar-fg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--topbar-line);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -269,28 +464,29 @@ ol {
   width: 2.25rem;
   height: 2.25rem;
   flex-shrink: 0;
-  border: 2px solid var(--accent-text);
-  border-radius: var(--radius-sm);
+  border: 2px solid currentColor;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 1.125rem;
-  color: var(--accent-text);
-  box-shadow: 0 0 18px var(--accent-soft);
+  color: var(--topbar-fg);
 }
 
 .brand-name {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 1.125rem;
   letter-spacing: 0.02em;
-  color: var(--text);
+  color: var(--topbar-fg);
 }
 
 .brand-tag {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--accent-text);
+  color: var(--topbar-sub);
   align-self: flex-start;
   margin-top: 0.125rem;
 }
@@ -309,12 +505,11 @@ ol {
   border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  color: var(--text-2);
+  color: var(--topbar-fg);
 }
 
 .topbar-icon:hover {
-  background: var(--surface-2);
-  color: var(--text);
+  background: rgba(127, 127, 127, 0.18);
 }
 
 .topbar-profile {
@@ -323,13 +518,14 @@ ol {
   gap: 0.5rem;
   min-width: 0;
   padding: 0.25rem 0.5rem 0.25rem 0.25rem;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(127, 127, 127, 0.35);
   border-radius: 999px;
   text-align: left;
+  color: var(--topbar-fg);
 }
 
 .topbar-profile:hover {
-  border-color: var(--accent-line);
+  background: rgba(127, 127, 127, 0.15);
 }
 
 .topbar-who {
@@ -348,9 +544,9 @@ ol {
 
 .topbar-sub {
   display: block;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.75rem;
-  color: var(--text-3);
+  color: var(--topbar-sub);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -385,7 +581,7 @@ ol {
 
 .page-title {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   font-size: 1.75rem;
   line-height: 1.2;
   margin-top: 0.25rem;
@@ -506,7 +702,7 @@ ol {
   .sidebar-foot {
     margin-top: auto;
     padding: 0.75rem;
-    font-family: var(--font-mono);
+    font-family: var(--font-label);
     font-size: 0.75rem;
     letter-spacing: 0.08em;
     color: var(--text-3);
@@ -526,6 +722,7 @@ ol {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
+  box-shadow: var(--shadow);
   border-radius: var(--radius);
   padding: 1.125rem;
 }
@@ -599,7 +796,7 @@ ol {
 }
 
 .month-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -709,7 +906,7 @@ ol {
   padding: 0.3125rem 0.75rem;
   border-radius: 999px;
   border: 1px solid currentColor;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -853,7 +1050,7 @@ ol {
 .tour-steps li::before,
 .steps li::before {
   content: counter(tour, decimal-leading-zero);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-weight: 600;
   color: var(--accent-text);
   padding-top: 0.0625rem;
@@ -928,11 +1125,11 @@ ol {
 
 .hero-value {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: clamp(2.625rem, 11vw, 3.75rem);
   line-height: 1.05;
   margin: 0.625rem 0 0.5rem;
   color: var(--tone, var(--accent-text));
-  text-shadow: 0 0 28px color-mix(in srgb, var(--tone, var(--accent-text)) 28%, transparent);
   overflow-wrap: anywhere;
 }
 
@@ -966,7 +1163,7 @@ ol {
 }
 
 .hero-stat-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1074,6 +1271,7 @@ ol {
 
 .balance-value {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 2rem;
   line-height: 1.15;
 }
@@ -1350,6 +1548,7 @@ button.row:hover {
 
 .summary-value {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 2.25rem;
   line-height: 1.1;
   margin: 0.375rem 0 0.25rem;
@@ -1366,7 +1565,7 @@ button.row:hover {
 }
 
 .summary-stat-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1424,6 +1623,7 @@ button.row:hover {
 
 .emi-amount {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 1.5rem;
 }
 
@@ -1542,6 +1742,10 @@ select.input {
 }
 
 .seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
   min-height: 2.75rem;
   padding: 0 0.875rem;
   border-radius: 3px;
@@ -1721,7 +1925,7 @@ select.input {
 
 .payee-sub {
   color: var(--text-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.875rem;
 }
 
@@ -1748,6 +1952,7 @@ select.input {
   gap: 0.25rem;
   margin: 0.25rem 0 0.75rem;
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 2.75rem;
   color: var(--accent-text);
   cursor: text;
@@ -1811,7 +2016,7 @@ select.input {
 .pin-title {
   margin-top: 1.25rem;
   text-align: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-weight: 600;
   font-size: 0.875rem;
   letter-spacing: 0.1em;
@@ -1936,6 +2141,7 @@ select.input {
 
 .success-amount {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 2.25rem;
   line-height: 1.2;
 }
@@ -2112,6 +2318,7 @@ select.input {
 
 .compare-value {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 1.375rem;
   line-height: 1.3;
   overflow-wrap: anywhere;
@@ -2207,7 +2414,7 @@ select.input {
 }
 
 .chart-col-day {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.75rem;
   color: var(--text-3);
 }
@@ -2343,13 +2550,13 @@ select.input {
 
 .donut-pct {
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.875rem;
   color: var(--text-3);
 }
 
 /* Six clearly different colours that read on both themes. */
-.s0 { --c: #9dff00; }
+.s0 { --c: var(--accent); }
 .s1 { --c: #ff6a00; }
 .s2 { --c: #ffd400; }
 .s3 { --c: #2dd4bf; }
@@ -2405,12 +2612,13 @@ select.input {
 
 .timeline-day {
   font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: 1.25rem;
   line-height: 1.1;
 }
 
 .timeline-month {
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -2429,6 +2637,722 @@ select.input {
 
 .timeline-amount.out {
   color: var(--red);
+}
+
+/* ---------- Theme-specific touches ---------- */
+
+:root[data-theme='doomsday'] .hero-value {
+  text-shadow: 0 0 28px color-mix(in srgb, var(--tone, var(--accent-text)) 28%, transparent);
+}
+
+.text-green {
+  color: var(--green);
+}
+
+.danger-text {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.stack {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.sub-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.greeting .page-title {
+  font-size: 1.5rem;
+}
+
+.icon-circle.in {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.month-totals {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.input-big {
+  min-height: 3.5rem;
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.input-sm {
+  min-height: 2.25rem;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+  max-width: 16rem;
+}
+
+.input-end {
+  position: absolute;
+  right: 0.25rem;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+/* ---------- Sign in and setup ---------- */
+
+.auth {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 1rem 3rem;
+}
+
+@media (min-width: 900px) {
+  .auth {
+    grid-template-columns: minmax(0, 28rem) minmax(0, 26rem);
+    justify-content: center;
+    align-items: center;
+    gap: 4rem;
+  }
+}
+
+.auth-hero {
+  max-width: 28rem;
+  color: var(--text);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.auth-brand .brand-mark,
+.auth-brand .brand-name {
+  color: var(--accent-text);
+}
+
+.auth-headline {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  line-height: 1.15;
+  margin: 1.25rem 0 1rem;
+}
+
+.auth-points {
+  display: grid;
+  gap: 0.75rem;
+  color: var(--text-2);
+}
+
+.auth-points li {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.auth-points svg {
+  color: var(--accent-text);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 26rem;
+  padding: 1.5rem;
+}
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 1rem;
+  color: var(--text-2);
+}
+
+.onboarding .page-title {
+  margin-top: 0.75rem;
+}
+
+.steps-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.375rem;
+}
+
+.steps-bar span {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.steps-bar span.on {
+  background: var(--accent);
+}
+
+/* ---------- Theme picker ---------- */
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.625rem;
+  margin-top: 0.75rem;
+}
+
+.theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.theme-card.active {
+  border-color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.theme-swatch {
+  width: 100%;
+  height: 2.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.375rem;
+  border: 1px solid var(--line);
+}
+
+.theme-swatch span {
+  width: 45%;
+  height: 0.625rem;
+  border-radius: 999px;
+}
+
+.theme-name {
+  font-weight: 700;
+}
+
+.theme-note {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+}
+
+.theme-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--accent-text);
+}
+
+/* ---------- Switch ---------- */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-weight: 500;
+  min-height: 2.75rem;
+  position: relative;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch-ui {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  transition: background 0.15s;
+}
+
+.switch-ui::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+
+.switch input:checked + .switch-ui {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch input:checked + .switch-ui::after {
+  transform: translateX(1.25rem);
+}
+
+.switch input:focus-visible + .switch-ui {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* ---------- EMIs ---------- */
+
+.emi-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.burden {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.875rem;
+  font-size: 0.9375rem;
+}
+
+.burden.good .progress span { background: var(--green); }
+.burden.ok .progress span { background: var(--accent); }
+.burden.warn .progress span { background: var(--amber-fill); }
+.burden.bad .progress span { background: var(--red-fill); }
+
+.progress span.warn {
+  background: var(--amber-fill);
+}
+
+.progress span.bad {
+  background: var(--red-fill);
+}
+
+.calc-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+}
+
+.calc-emi {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 2.25rem;
+  color: var(--accent-text);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table th {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+/* ---------- Credit health ---------- */
+
+.credit-gauge {
+  position: relative;
+  max-width: 16rem;
+  margin: 0.75rem auto 0.5rem;
+}
+
+.gauge-track,
+.gauge-fill {
+  fill: none;
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.gauge-track {
+  stroke: var(--surface-3);
+}
+
+.gauge-fill.green { stroke: var(--green); }
+.gauge-fill.amber { stroke: var(--amber-fill); }
+.gauge-fill.red { stroke: var(--red-fill); }
+
+.credit-score {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.credit-number {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.credit-band {
+  font-weight: 700;
+}
+
+.credit-band.green { color: var(--green); }
+.credit-band.amber { color: var(--amber); }
+.credit-band.red { color: var(--red); }
+
+.factors {
+  display: grid;
+  gap: 0.875rem;
+  margin-top: 1rem;
+}
+
+.factor-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.factor-weight {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+}
+
+.factors .progress {
+  margin-top: 0.375rem;
+}
+
+.factor-note {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  margin-top: 0.25rem;
+}
+
+/* ---------- Trend bars ---------- */
+
+.trend-cols {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.25rem;
+  align-items: end;
+}
+
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.trend-bars {
+  height: 7rem;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+}
+
+.trend-bar {
+  width: 38%;
+  max-width: 1.25rem;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+}
+
+.trend-bar.in,
+.lg-in {
+  background: var(--green);
+}
+
+.trend-bar.out,
+.lg-out {
+  background: var(--accent);
+}
+
+.lg-in,
+.lg-out {
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  border-radius: 3px;
+}
+
+.trend-value {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend-label {
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+/* ---------- Assistant ---------- */
+
+.ai-mode-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 12rem;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.chat-empty {
+  margin: auto;
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--text-2);
+  max-width: 20rem;
+}
+
+.bubble {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  max-width: 92%;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.bubble-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--accent-text);
+}
+
+.bubble-body {
+  padding: 0.625rem 0.875rem;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.bubble.user .bubble-body {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.bubble-meta .link-btn {
+  min-height: 1.5rem;
+}
+
+.chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.chips .seg {
+  white-space: nowrap;
+  background: var(--surface);
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+  position: sticky;
+  bottom: calc(var(--bottomnav-h) + 0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 900px) {
+  .chat-input {
+    bottom: 1rem;
+  }
+}
+
+.chat-input .btn {
+  min-width: 3.25rem;
+  padding: 0 0.875rem;
+}
+
+/* ---------- Upload ---------- */
+
+.slots {
+  display: grid;
+  gap: 0.625rem;
+  margin-top: 0.875rem;
+}
+
+.slot {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.625rem;
+  background: var(--surface-2);
+}
+
+.slot.ready {
+  border-style: solid;
+  border-color: var(--green);
+}
+
+.slot.error {
+  border-color: var(--red);
+}
+
+.slot-head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+}
+
+.slot-number {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.slot-pick {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-align: left;
+}
+
+.slot-options {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 520px) {
+  .slot-options {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.review-list {
+  margin-top: 0.5rem;
+}
+
+.review-row {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-row.off {
+  opacity: 0.55;
+}
+
+.review-check {
+  display: grid;
+  place-items: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.review-check input {
+  width: 1.375rem;
+  height: 1.375rem;
+  accent-color: var(--accent);
+}
+
+.toast.error {
+  background: var(--red-fill);
+  color: #ffffff;
 }
 
 /* ---------- Toast & loading ---------- */
@@ -2463,7 +3387,7 @@ select.input {
   gap: 0.75rem;
   min-height: 50vh;
   color: var(--text-2);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   letter-spacing: 0.06em;
 }
 

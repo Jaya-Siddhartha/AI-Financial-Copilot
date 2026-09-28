@@ -8,6 +8,9 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -15,32 +18,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install backend
+      - name: Install
         run: npm ci
-        working-directory: backend
 
-      - name: Backend tests (API + engine)
+      - name: Tests (engine, statements, tools, 3,000-situation simulation)
         run: npm test
-        working-directory: backend
 
-      - name: Install frontend
-        run: npm ci
-        working-directory: frontend
-
-      - name: Frontend production build
+      - name: Production build
         run: npm run build
-        working-directory: frontend
 
-      - name: Standalone demo build
-        run: npm run build:demo
-        working-directory: frontend
-
-      - name: API tests against the in-browser demo API
-        run: |
-          node frontend/scripts/serve-browser-api.mjs 5055 &
-          sleep 2
-          API_URL=http://127.0.0.1:5055/api node --test backend/tests/api.test.js
+      - name: Security audit
+        run: npm audit --audit-level=high

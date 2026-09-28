@@ -1,64 +1,53 @@
 import React from 'react';
-import { ArrowDownLeft, ChevronRight, HandCoins, History, Info, Landmark, Send, Volume2, X } from 'lucide-react';
+import { ArrowDownLeft, Bot, Calculator, ChevronRight, FileUp, HandCoins, Info, Landmark, Minus, Volume2 } from 'lucide-react';
 import { IconTile } from '../components/ui/IconTile';
 import { StatusChip } from '../components/ui/StatusChip';
+import { Alert } from '../components/ui/Alert';
 import { TransactionRow } from '../components/TransactionRow';
 import { dueText, formatShortDate, inr, STATUS_META, statusTone } from '../lib/format';
 import { canSpeak, speak } from '../lib/speech';
+import { suggestions } from '../lib/advisor';
 
-// EMIs that still need paying this month: late ones first, then by due date.
-export function upcomingEmis(emis = []) {
-  return emis
-    .filter((e) => e.status === 'upcoming' || e.status === 'overdue')
-    .sort((a, b) => a.daysRemaining - b.daysRemaining || (b.daysOverdue || 0) - (a.daysOverdue || 0));
-}
+export function HomePage({ data, analysis: a, credit, actions }) {
+  const { profile, transactions } = data;
+  const next = a.nextEmi;
+  const meta = STATUS_META[a.status] || STATUS_META.SAFE;
+  const tone = statusTone(a.status);
+  const tips = suggestions({ analysis: a, profile, credit }).filter((s) => s.tone !== 'green').slice(0, 2);
+  const firstName = (profile.fullName || '').split(' ')[0];
 
-// Home keeps to what most people need at a glance: how much they can spend, their balance,
-// the four common actions, the next EMI and the last few payments. Details live in Insights.
-export function HomePage({ data, actions, settings }) {
-  const { metrics, aiPrediction, recentTransactions = [] } = data;
-  const dueEmis = upcomingEmis(data.emis);
-  const nextEmi = dueEmis[0];
-  const meta = STATUS_META[metrics.riskStatus] || STATUS_META.SAFE;
-  const tone = statusTone(metrics.riskStatus);
-
-  const sentence =
-    metrics.riskStatus === 'SAFE'
-      ? nextEmi
-        ? `${meta.sentence} Next EMI: ${inr(nextEmi.amount)}, ${dueText(nextEmi.daysRemaining, nextEmi)}.`
-        : 'All EMIs for this month are paid.'
-      : aiPrediction.advice;
+  const sentence = !a.hasBalance
+    ? 'Add your bank balance to see how much is safe to spend.'
+    : a.status === 'SAFE'
+      ? next
+        ? `${meta.sentence} Next EMI: ${inr(next.amount)}, ${dueText(next.daysRemaining, next)}.`
+        : 'No EMIs are waiting to be paid right now.'
+      : a.status === 'HIGH RISK'
+        ? `You could be ${inr(a.shortBy)} short for your ${next?.name || 'next'} EMI. Hold off on extra spending.`
+        : a.overdue.length
+          ? `Your ${a.overdue[0].name} EMI is late. Pay it soon.`
+          : 'Your EMIs are covered, but only just. Spend carefully.';
 
   const readAloud = () =>
-    speak(`You can safely spend ${inr(metrics.safeToSpend)}. ${sentence} Your balance is ${inr(metrics.currentBalance)}.`);
+    speak(
+      a.hasBalance
+        ? `You can safely spend ${inr(a.safeToSpend)}. ${sentence} Your balance is ${inr(a.balance)}.`
+        : sentence
+    );
 
   return (
     <div className="page">
-      {!settings.tourDone && (
-        <section className="card tour" aria-labelledby="tour-title">
-          <div className="card-head">
-            <h2 className="card-title" id="tour-title">Welcome! How this works</h2>
-            <button type="button" className="icon-btn" aria-label="Hide these tips" onClick={() => actions.setSettings({ tourDone: true })}>
-              <X size={20} />
-            </button>
-          </div>
-          <ol className="tour-steps">
-            <li><span><strong>The big number</strong> is money you can spend without missing a loan payment (EMI).</span></li>
-            <li><span><strong>Before you pay,</strong> we warn you if the payment puts an EMI at risk.</span></li>
-          </ol>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.setSettings({ tourDone: true })}>
-            Got it
-          </button>
-        </section>
-      )}
+      <div className="greeting">
+        <h1 className="page-title">{firstName ? `Hi, ${firstName}` : 'Hello'}</h1>
+      </div>
 
-      {nextEmi?.status === 'overdue' && (
+      {a.overdue[0] && (
         <div className="banner red" role="alert">
           <HandCoins size={22} aria-hidden="true" />
           <div className="banner-text">
-            <strong>{nextEmi.name} EMI is {nextEmi.daysOverdue} day{nextEmi.daysOverdue === 1 ? '' : 's'} late.</strong> Pay it now to avoid late fees.
+            <strong>{a.overdue[0].name} EMI is {a.overdue[0].daysOverdue} day{a.overdue[0].daysOverdue === 1 ? '' : 's'} late.</strong> Pay it to avoid late fees.
           </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.payEmi(nextEmi)}>Pay now</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.payEmi(a.overdue[0])}>Pay now</button>
         </div>
       )}
 
@@ -67,14 +56,20 @@ export function HomePage({ data, actions, settings }) {
           <section className={`hero frame tone-${tone}`} aria-labelledby="hero-label">
             <div className="hero-top">
               <span className="eyebrow" id="hero-label">You can spend safely</span>
-              <StatusChip status={metrics.riskStatus} />
+              {a.hasBalance && <StatusChip status={a.status} />}
             </div>
-            <div className="hero-value">{inr(metrics.safeToSpend)}</div>
+            <div className="hero-value">{a.hasBalance ? inr(a.safeToSpend) : '—'}</div>
             <p className="hero-sentence">{sentence}</p>
             <div className="hero-actions">
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => actions.go('insights')}>
-                Why this amount? <ChevronRight size={18} />
-              </button>
+              {a.hasBalance ? (
+                <button type="button" className="btn btn-outline btn-sm" onClick={() => actions.go('insights')}>
+                  Why this amount? <ChevronRight size={18} />
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary btn-sm" onClick={actions.updateBalance}>
+                  <Landmark size={18} /> Add bank balance
+                </button>
+              )}
               {canSpeak() && (
                 <button type="button" className="btn btn-outline btn-sm" onClick={readAloud}>
                   <Volume2 size={18} /> Read aloud
@@ -83,36 +78,42 @@ export function HomePage({ data, actions, settings }) {
             </div>
           </section>
 
-          <section className="card balance-card" aria-labelledby="balance-label">
-            <div className="balance-row">
-              <div>
-                <div className="field-label" id="balance-label">Your balance</div>
-                <div className="balance-value">{inr(metrics.currentBalance)}</div>
+          {a.hasBalance && (
+            <section className="card balance-card" aria-labelledby="balance-label">
+              <div className="balance-row">
+                <div>
+                  <div className="field-label" id="balance-label">Your balance</div>
+                  <div className="balance-value">{inr(a.balance)}</div>
+                </div>
+                <button type="button" className="btn btn-soft btn-sm" onClick={actions.updateBalance}>
+                  <Landmark size={18} /> Match with bank
+                </button>
               </div>
-              <button type="button" className="btn btn-soft btn-sm" onClick={actions.checkBalance}>
-                <Landmark size={18} /> Check with bank
-              </button>
-            </div>
-            <p className="balance-note">
-              Worked out from your payments in this app: {inr(metrics.verifiedBalance)} at your last bank check (
-              {formatShortDate(metrics.lastBalanceCheckDate)})
-              {metrics.debitsSinceCheck > 0 && ` − ${inr(metrics.debitsSinceCheck)} paid`}
-              {metrics.creditsSinceCheck > 0 && ` + ${inr(metrics.creditsSinceCheck)} received`} since.
-            </p>
-            <p className="disclaimer">
-              <Info size={18} aria-hidden="true" />
-              <span>
-                Money taken out or added outside this app (cash withdrawals, bank charges, cheques) is not counted until you tap
-                <strong> Check with bank</strong>.
-              </span>
-            </p>
-          </section>
+              <p className="balance-note">
+                {a.balanceInfo.debitsSince || a.balanceInfo.creditsSince ? (
+                  <>
+                    {inr(a.balanceInfo.anchor)} when you last matched it ({formatShortDate(a.balanceInfo.anchorDate)})
+                    {a.balanceInfo.debitsSince > 0 && ` − ${inr(a.balanceInfo.debitsSince)} spent`}
+                    {a.balanceInfo.creditsSince > 0 && ` + ${inr(a.balanceInfo.creditsSince)} received`} since then.
+                  </>
+                ) : (
+                  <>Matched with your bank on {formatShortDate(a.balanceInfo.anchorDate)}. Nothing added since.</>
+                )}
+              </p>
+              <p className="disclaimer">
+                <Info size={18} aria-hidden="true" />
+                <span>
+                  Worked out from the transactions in this app. Anything you did not add or upload (cash, bank charges, other apps) is not included. Tap <strong>Match with bank</strong> now and then.
+                </span>
+              </p>
+            </section>
+          )}
 
-          <section className="tiles tiles-4" aria-label="What would you like to do?">
-            <IconTile icon={Send} label="Send money" onClick={() => actions.pay()} primary />
-            <IconTile icon={ArrowDownLeft} label="Receive money" onClick={actions.receive} />
-            <IconTile icon={HandCoins} label="Pay an EMI" onClick={() => (nextEmi ? actions.payEmi(nextEmi) : actions.go('emis'))} />
-            <IconTile icon={History} label="My payments" onClick={() => actions.go('history')} />
+          <section className="tiles tiles-4" aria-label="Quick actions">
+            <IconTile icon={Minus} label="Add expense" onClick={() => actions.newTx('debit')} primary />
+            <IconTile icon={ArrowDownLeft} label="Add income" onClick={() => actions.newTx('credit')} />
+            <IconTile icon={FileUp} label="Upload statements" onClick={actions.upload} />
+            <IconTile icon={Calculator} label="EMI calculator" onClick={() => actions.go('emis')} />
           </section>
         </div>
 
@@ -124,40 +125,69 @@ export function HomePage({ data, actions, settings }) {
                 All EMIs <ChevronRight size={18} />
               </button>
             </div>
-            {!nextEmi ? (
-              <div className="empty">All EMIs are paid for this month.</div>
+            {!a.emis.length ? (
+              <div className="empty">
+                No EMIs added.
+                <button type="button" className="btn btn-soft btn-sm" style={{ marginTop: 10 }} onClick={() => actions.editEmi()}>Add an EMI</button>
+              </div>
+            ) : !next ? (
+              <div className="empty">All EMIs are paid for now.</div>
             ) : (
               <div className="row" style={{ borderBottom: 'none' }}>
-                <span className={`icon-circle ${nextEmi.status === 'overdue' ? 'danger' : ''}`}>
+                <span className={`icon-circle ${next.status === 'overdue' ? 'danger' : ''}`}>
                   <HandCoins size={22} strokeWidth={1.8} />
                 </span>
                 <div className="row-main">
-                  <div className="row-title">{nextEmi.name}</div>
-                  <div className={`row-sub ${nextEmi.status === 'overdue' ? 'text-danger' : ''}`}>
-                    {inr(nextEmi.amount)} · {nextEmi.status === 'overdue' ? '' : 'due '}
-                    {dueText(nextEmi.daysRemaining, nextEmi)}
+                  <div className="row-title">{next.name}</div>
+                  <div className={`row-sub ${next.status === 'overdue' ? 'text-danger' : ''}`}>
+                    {inr(next.amount)} · {next.status === 'overdue' ? '' : 'due '}
+                    {dueText(next.daysRemaining, next)}
+                    {next.autopay && ' · Autopay'}
                   </div>
                 </div>
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.payEmi(nextEmi)}>
-                  Pay
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.payEmi(next)}>
+                  Paid it
                 </button>
               </div>
             )}
           </section>
 
+          {tips.length > 0 && (
+            <section className="card" aria-labelledby="tips-title">
+              <div className="card-head">
+                <h2 className="card-title" id="tips-title">For you</h2>
+                <button type="button" className="link-btn" onClick={() => actions.go('assistant')}>
+                  <Bot size={18} /> Ask AI
+                </button>
+              </div>
+              <div className="stack">
+                {tips.map((t) => (
+                  <Alert key={t.title} tone={t.tone}>
+                    <strong>{t.title}.</strong> {t.text}
+                  </Alert>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="card" aria-labelledby="recent-title">
             <div className="card-head">
-              <h2 className="card-title" id="recent-title">Recent payments</h2>
-              <button type="button" className="link-btn" onClick={() => actions.go('history')}>
+              <h2 className="card-title" id="recent-title">Recent</h2>
+              <button type="button" className="link-btn" onClick={() => actions.go('activity')}>
                 See all <ChevronRight size={18} />
               </button>
             </div>
-            {recentTransactions.length === 0 ? (
-              <div className="empty">No payments yet.</div>
+            {transactions.length === 0 ? (
+              <div className="empty">
+                Nothing yet. Add an expense or upload a statement.
+                <button type="button" className="btn btn-soft btn-sm" style={{ marginTop: 10 }} onClick={actions.upload}>
+                  <FileUp size={18} /> Upload statements
+                </button>
+              </div>
             ) : (
               <div className="list">
-                {recentTransactions.slice(0, 3).map((tx) => (
-                  <TransactionRow key={tx._id || tx.id} tx={tx} onClick={() => actions.openTx(tx)} />
+                {transactions.slice(0, 4).map((tx) => (
+                  <TransactionRow key={tx.id} tx={tx} onClick={() => actions.openTx(tx)} />
                 ))}
               </div>
             )}

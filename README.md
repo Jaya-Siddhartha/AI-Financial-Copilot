@@ -1,283 +1,211 @@
 # FinCopilot
 
-**UPI payments that tell you how much is safe to spend before your EMIs are due.**
+**Know what you can spend before you spend it.**
 
-FinCopilot is a demo payments app for Indian UPI users. It works like a regular UPI app: pay to a mobile number or UPI ID, check your balance with a UPI PIN, receive money with your QR code, and see your history. It adds one thing most payment apps don't: **before you pay, it checks whether the payment would leave you short for an upcoming loan EMI**, and asks you to confirm if it would.
+FinCopilot is an expense and EMI manager for people in India. Upload your PhonePe, Google Pay, Paytm or bank statements (or add expenses by hand), add your loans, and it tells you one simple thing: **how much you can spend without missing an EMI**. It warns you when you are overspending, reminds you before EMIs are due, and has an AI assistant that runs on your own device.
 
-It is built to be easy for everyone, from a first-time smartphone user of 60 to a student of 20: one big number on the home screen, plain words instead of banking jargon, a text-size setting, a light and a dark theme, and a "Read aloud" button.
+It is built to be easy for everyone, from a 20-year-old student to a 60-year-old first-time smartphone user: one big number, plain words, big buttons, a text-size setting, six colour themes and a "Read aloud" button.
 
-> **Everything is pretend.** Accounts, banks and payments are fake and no real money moves. Demo UPI PIN: `1234`.
+> FinCopilot does not move money and is not a bank. It reads what you give it and helps you decide.
 
-- **Live app:** https://fincopilot-upi.vercel.app
-- **API health check:** https://fincopilot-upi.vercel.app/api/health
+- **Live app:** https://fincopilot-jaya-siddharthas-projects.vercel.app
+- **Test report (simple English):** [TEST_REPORT.md](TEST_REPORT.md) · **What changed:** [CHANGES.md](CHANGES.md) · **Audit:** [AUDIT_REPORT.md](AUDIT_REPORT.md)
 
-| Home | Pay screen: new payee + EMI warning | UPI PIN |
+| Home | Upload up to 5 statements | Your safety buffer |
 |---|---|---|
-| ![Home](docs/screenshots/mobile-home.png) | ![Pay](docs/screenshots/mobile-pay-warning.png) | ![PIN](docs/screenshots/mobile-upi-pin.png) |
+| ![Home](docs/screenshots/mobile-home.png) | ![Upload](docs/screenshots/mobile-upload.png) | ![Buffer](docs/screenshots/mobile-settings-buffer.png) |
 
-| Insights | My QR | Light theme, extra-large text |
+| EMI calculator | Credit health estimate | Ask the assistant |
 |---|---|---|
-| ![Insights](docs/screenshots/mobile-insights.png) | ![My QR](docs/screenshots/mobile-my-qr.png) | ![Light theme](docs/screenshots/mobile-light-large-text.png) |
+| ![EMI calculator](docs/screenshots/mobile-emi-calculator.png) | ![Credit health](docs/screenshots/mobile-credit-health.png) | ![Assistant](docs/screenshots/mobile-assistant.png) |
 
-![Desktop home](docs/screenshots/desktop-home.png)
+| Doomsday | Dark | Saffron | Ocean | Light |
+|---|---|---|---|---|
+| ![Doomsday](docs/screenshots/theme-doomsday.png) | ![Dark](docs/screenshots/theme-dark.png) | ![Saffron](docs/screenshots/theme-saffron.png) | ![Ocean](docs/screenshots/theme-ocean.png) | ![Light](docs/screenshots/theme-light.png) |
+
+![Desktop insights](docs/screenshots/desktop-insights.png)
 
 ---
 
 ## Contents
 
-1. [How it works](#how-it-works)
-2. [Features](#features)
-3. [Design](#design)
-4. [What changed in this update](#what-changed-in-this-update)
-5. [Tech stack](#tech-stack)
-6. [Project structure](#project-structure)
-7. [Run it locally](#run-it-locally)
-8. [Browser-only demo](#browser-only-demo)
-9. [Tests](#tests)
-10. [Configuration](#configuration)
-11. [Deployment](#deployment)
-12. [API reference](#api-reference)
-13. [Contributing](#contributing)
-14. [Documentation](#documentation)
+1. [What it does](#what-it-does)
+2. [How "safe to spend" works](#how-safe-to-spend-works)
+3. [The offline AI](#the-offline-ai)
+4. [Credit health estimate](#credit-health-estimate)
+5. [Tech and architecture](#tech-and-architecture)
+6. [Run it locally](#run-it-locally)
+7. [Supabase setup](#supabase-setup)
+8. [Tests](#tests)
+9. [Deployment](#deployment)
+10. [Project structure](#project-structure)
+11. [Research behind the design](#research-behind-the-design)
 
 ---
 
-## How it works
+## What it does
 
-FinCopilot works out one number: **money you can spend safely**.
+| Feature | What you get |
+|---|---|
+| **Sign in** | Email and password account (Supabase Auth), email confirmation, forgot password, change password, delete account. |
+| **Simple setup** | Name, income and salary day → your bank balance → your safety buffer → your theme. Four short steps. |
+| **Home** | One big "You can spend safely" figure, your balance and how it was worked out, four big buttons, your next EMI, tips and recent transactions. |
+| **Upload statements** | Up to **5 files at once**: PhonePe, Google Pay, Paytm, BHIM or any bank, as **PDF (including password-locked), Excel (.xlsx) or CSV**. Files are read on your device. A preview lets you **tick or untick every transaction** and change its category. Duplicates (the same payment in two statements, or already saved) are found and unticked for you. |
+| **Add by hand** | Money out or money in, with the category picked automatically from the description. |
+| **Balance** | Worked out from your transactions: the last figure you confirmed with your bank, plus money in, minus money out. **Match with bank** resets it and tells you if something happened outside the app (cash, bank charges, other apps). |
+| **Safety buffer (your choice)** | In Settings: switch it on or off, and pick ₹1,000 / ₹2,000 / ₹3,000 / ₹5,000 / 5% of income, or type any amount. |
+| **EMIs** | Add loans, see what is due and what is late, mark as paid, **autopay** (records the EMI as paid automatically on its due date), months left and % repaid, and how much of your income goes to EMIs. |
+| **EMI calculator** | Monthly EMI, total interest, a year-by-year schedule, whether it fits your income, and "Add as EMI". |
+| **Stop overspending** | Spending-pace alert ("faster than usual this month"), category spikes, repeating payments (subscriptions), a 7-day balance forecast, a calendar of money in and out, and a "Can I afford it?" check. |
+| **Credit health estimate** | A 300–900 estimate from your data with the six factors behind it, and a tip for each. Clearly labelled as an estimate, not your CIBIL score. |
+| **Assistant** | Ask in plain words. Money decisions get exact answers from the calculator; open questions can use the **offline AI** that runs on your device. |
+| **Six themes and text size** | Purple (default), Light, Dark, Doomsday, Saffron, Ocean; Normal, Large or Extra large text. Saved to your account. |
+| **Private** | Every table is locked so only you can read your rows; statement files are kept in a private folder only you can open. |
+
+## How "safe to spend" works
 
 ```
-safe to spend = current balance
-              − EMIs still to pay this month
-              − usual daily spending × days until the next EMI
-              − ₹2,000 safety cushion
+safe to spend = your balance
+              − EMIs due in the next month
+              − your usual daily spending × days until the next EMI
+              − your safety buffer (if you turned it on)
 ```
 
-- **Usual daily spending** is everything you spent in the **last 30 days** except rent and EMIs, divided by 30, with a minimum of ₹300 a day.
-- **Status** is one of three levels:
-  - **Safe:** the balance covers EMIs, usual spending and the cushion.
-  - **Be careful:** EMIs and spending are covered, but not the cushion, or an EMI is late.
-  - **At risk:** the balance won't cover EMIs plus usual spending. The app shows how much you'd be short.
-- **Late EMIs:** if an EMI's due date passes without a payment, it is marked **Overdue**, counted as due now, and shown at the top of the home screen.
+- **Your balance** = the amount you last confirmed with your bank + money in − money out since then.
+- **Usual daily spending** = your everyday spending over the last 30 days (or fewer, if you have less history), divided by those days. Rent, EMIs, savings and **one-off payments over max(₹5,000, 20% of income)** are left out, so one big purchase does not make every day look expensive.
+- **When no EMI is waiting**, nothing is kept aside for everyday spending: safe to spend = balance − buffer.
+- **Status:** *Safe* (all covered), *Be careful* (covered but the buffer is not, or an EMI is late), *At risk* (you could be short for an EMI; it shows by how much).
+- **"Can I afford it?"** runs the exact same calculation with the purchase added, so it always matches what you will see after spending.
 
-The formula is fixed and explainable, not a trained model. The home screen shows the split as one coloured bar, the **Insights** screen shows the sum line by line, and **Can I afford it?** shows what any amount would do before you pay. The engine lives in [`backend/src/services/financialEngine.js`](backend/src/services/financialEngine.js).
+The engine is [`frontend/src/lib/engine.js`](frontend/src/lib/engine.js). It runs on your device, so the screen updates instantly (about 20 ms) and works with thousands of transactions.
 
-## Features
+## The offline AI
 
-| Area | What you can do |
+The assistant can use a real language model, **Qwen 2.5 (Apache-2.0)**, running **inside your browser** with WebLLM and your graphics card (WebGPU). There is no API key, no account, and your questions never leave your device.
+
+- **Smart** (about 1 GB) or **Lite** (about 400 MB). It downloads once, then works offline.
+- It only knows what is in your own data, handed to it as a fact sheet with every question.
+- **Money decisions** ("Can I afford…", loans, EMIs, safe to spend, credit score) are always answered by the exact calculator, not the model. The model handles open questions such as saving tips.
+- **Any AI answer with a rupee amount that is not in your data is thrown away** and the exact figures are shown instead.
+- Needs a browser with WebGPU (recent Chrome or Edge on a computer, some newer phones). Everywhere else the built-in assistant answers instantly.
+
+Details and test results: [TEST_REPORT.md §5](TEST_REPORT.md#5-the-offline-ai).
+
+## Credit health estimate
+
+Real credit scores (CIBIL, Experian, Equifax, CRIF) come from credit bureaus, which only give access to registered businesses through paid, KYC-checked partners. There is no free, legal way for an app like this to fetch your real score. So FinCopilot shows an **estimate** on the same 300–900 scale, from what it can see:
+
+| Factor | Weight |
 |---|---|
-| **Home** | One big "money you can spend safely" figure, a bar showing where your balance goes, a plain sentence about your EMIs, big buttons for common tasks, and banners for late or soon-due EMIs. |
-| **Getting-started tips** | First-time users see three short steps. They can be hidden, and shown again from Profile. |
-| **Read aloud** | Reads the summary and advice with the phone's own voice, in Indian English. |
-| **Pay** | Pay to a 10-digit mobile number, a UPI ID or a saved contact. Payments are capped at ₹1,00,000 (the NPCI limit for person-to-person UPI). |
-| **Scam protection** | Paying someone who isn't in your contacts shows "First time paying… check the name". The PIN screen reminds you never to share your PIN. |
-| **EMI protection** | While you type an amount, the pay screen says whether it's safe or how much you'd be short for which EMI. A risky payment needs a tick in "I understand" before you can continue. |
-| **UPI PIN** | Every payment, **including EMI payments**, needs the PIN, as do balance checks and PIN changes. 3 wrong attempts lock it for 5 minutes. |
-| **My QR** | Your UPI QR code (a standard `upi://pay` link) and UPI ID, ready to show or copy. |
-| **EMIs** | Add, pay and remove EMIs. Countdown, "Overdue" state, months left and % repaid. |
-| **Insights** | Where you stand, a 7-day balance chart with the "needed for EMIs" line, a calendar of money in and out, spending by category (donut), the safe-to-spend sum, **Can I afford it?**, and a 30/60/90-day outlook that shows shortfalls. |
-| **History** | Search, filter, change a category, and download a CSV statement. |
-| **Profile & settings** | Text size (Normal / Large / Extra large), Dark or Light colours, switch demo account, change UPI PIN (current PIN checked first), reset demo data. |
-| **Install** | A web app manifest, so it can be added to the phone's home screen. |
-| **Links** | Each tab has its own address (`#insights`, `#emis`…), so the Back button works. |
+| Paying EMIs on time (no late EMIs, no penalties) | 35% |
+| Share of income going to EMIs (under 40% is healthy) | 25% |
+| Saving each month | 15% |
+| No bounced payments or penalty charges in statements | 10% |
+| Length of history seen | 10% |
+| Number of loans at once | 5% |
 
-## Design
+It is always labelled as an estimate. A real bureau score can be added later through a licensed partner (see [UPGRADES.md](UPGRADES.md)).
 
-The look follows the **Doomsday Hackathon** site ([doomsday-acm.vercel.app](https://doomsday-acm.vercel.app/)): a near-black background with a faint grid, a toxic-lime accent (`#9DFF00`), hazard orange (`#FF6A00`) and warning yellow (`#FFD400`), corner-bracket frames, **Russo One** for big numbers, **Inter** for text and **JetBrains Mono** for small labels.
+## Tech and architecture
 
-The theme is tuned for reading, not just for looks:
-
-- Every size is in `rem`, so the **Text size** setting (and the browser's own text size) scales the whole app. Body text is 16 px at normal size.
-- Every text colour meets WCAG AA contrast (at least 4.5:1) in both themes; most are above 7:1.
-- Tap targets are at least 44 px. Colour is never the only signal: statuses also have words, and charts have labels.
-- Charts draw shapes in SVG but put every number in HTML, so labels stay readable at any size, and each chart has a screen-reader table.
-- Colour tokens live at the top of [`frontend/src/styles/index.css`](frontend/src/styles/index.css), with a `[data-theme='light']` set.
-
-## What changed in this update
-
-A second full audit and a redesign. The complete list, with evidence, is in [AUDIT_REPORT.md](AUDIT_REPORT.md); the research behind the new features is in [UPGRADES.md](UPGRADES.md).
-
-### Fixed
-
-| Before | After |
-|---|---|
-| **EMI payments moved money without a UPI PIN** | EMI payments need the PIN, with the same lockout |
-| Anyone could change another user's transaction category | Only the owner can |
-| The new PIN could be the same as the old one; a wrong current PIN was only reported after typing all three PINs | Rejected; the current PIN is checked first |
-| Daily spending used the last 100 payments whatever their dates | Only the last 30 days count |
-| The 30/60/90-day outlook showed ₹0 instead of a shortfall | Shows "Short ₹X" in red |
-| A missed EMI silently rolled over to "Due in 29 days" | Marked **Overdue** and flagged on Home |
-| An EMI due on the 31st was never taken off in 30-day months in the 7-day chart | Month-end due days are handled |
-| The dev server restarted on every payment (`nodemon` watched the data file) | Data and backup folders are ignored |
-| A half-written `db.json` was silently replaced by an empty store | Writes are atomic; an unreadable file is kept aside |
-| No security headers; CORS open to every site | Standard headers; optional `CORS_ORIGIN` allow-list |
-| Unlimited name lengths, free-text enums, formula injection in the CSV statement | Inputs capped and checked; CSV cells neutralised |
-| Vite dev-server advisory (`npm audit`: 2) | Vite 8, 0 advisories |
-| `npm run build:demo` failed on Windows | Fixed |
-
-### Added
-
-- The Doomsday theme with a Light option, text-size setting, getting-started tips, Read aloud, help panels ("How is this number worked out?").
-- Money-split bar, 7-day area chart, category donut, money calendar.
-- New-payee warning, risky-payment confirmation, PIN safety note, Overdue EMIs.
-- My QR, web app manifest, URL per tab.
-- `POST /api/account/verify-pin`.
-- 13 new tests (26 in total), including date-based engine tests, and a GitHub Actions workflow.
-
-## Tech stack
+```text
+Your phone or computer (React app)                         Supabase (your project)
+┌──────────────────────────────────────────┐   HTTPS   ┌─────────────────────────────┐
+│ Screens: Home, History, Insights, EMIs,  │ ───────►  │ Auth: email + password      │
+│ Assistant, Settings                      │           │ Postgres: profiles,         │
+│ Money engine, statement reader, EMI      │ ◄───────  │ transactions, emis,         │
+│ maths, credit estimate (all on device)   │           │ statements (row-level       │
+│ Offline AI: WebLLM + Qwen 2.5 (WebGPU)   │           │ security on every table)    │
+└──────────────────────────────────────────┘           │ Storage: private statements │
+                                                       └─────────────────────────────┘
+```
 
 | Part | Technology |
 |---|---|
-| Frontend | React 18, Vite 8, Axios, Lucide icons, `qrcode`, plain CSS (design tokens in `styles/index.css`) |
-| Backend | Node.js, Express 4, Mongoose 8 |
-| Storage | MongoDB (when `MONGODB_URI` is set) or a JSON file (`backend/data/db.json`) |
-| Tests | `node:test` (API and engine), run in GitHub Actions |
-| Hosting | Vercel (`vercel.json`: `/api/*` → backend, everything else → frontend) |
+| App | React 18, Vite 8, Lucide icons, plain CSS with six themes |
+| Login, data, files | Supabase (Auth, Postgres with row-level security, Storage) |
+| Statement reading | pdf.js (PDF, including locked files), Papa Parse (CSV), read-excel-file (.xlsx) |
+| Offline AI | WebLLM running Qwen 2.5 Instruct (0.5B or 1.5B) on WebGPU |
+| Tests | `node:test`: unit tests + a seeded simulation; GitHub Actions |
+| Hosting | Vercel (static app); Supabase for data |
+
+Saving is "optimistic": the screen changes immediately, the data is saved in the background, and if saving fails the change is undone with a clear message.
+
+## Run it locally
+
+You need **Node.js 20.19+ or 22.12+**.
+
+```bash
+git clone https://github.com/Jaya-Siddhartha/AI-Financial-Copilot.git
+cd AI-Financial-Copilot/frontend
+npm install
+npm run dev          # the real app, using the Supabase project in src/config.js
+```
+
+Open http://localhost:5173.
+
+To try every screen **without an account**, use test mode. Data is kept in memory in your browser tab and is never sent anywhere:
+
+```bash
+npm run dev:mock
+```
+
+Sample statements for trying the upload are in [`frontend/tests/fixtures`](frontend/tests/fixtures). The PhonePe sample's password is `9876543210`.
+
+## Supabase setup
+
+The database is already set up in the FinCopilot Supabase project. To use another project, run [`supabase/migrations/0001_initial_schema.sql`](supabase/migrations/0001_initial_schema.sql) in its SQL Editor and set `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` (see `.env.example`).
+
+**One setting you need to make in the Supabase dashboard** (Authentication → URL Configuration):
+
+- **Site URL:** `https://fincopilot-jaya-siddharthas-projects.vercel.app`
+- **Redirect URLs:** add `https://fincopilot-jaya-siddharthas-projects.vercel.app/**`, `https://*-jaya-siddharthas-projects.vercel.app/**` and `http://localhost:5173/**`
+
+Without this, confirmation and password-reset emails send people to `localhost:3000`. Supabase's built-in email sender allows only a few emails per hour. For a hackathon demo you can turn off **Confirm email** (Authentication → Providers → Email), or add your own SMTP for real use.
+
+## Tests
+
+```bash
+cd frontend
+npm test                                  # 28 tests, including a 3,000-situation simulation (~15 s)
+SIM_RUNS=20000 SIM_SEED=777 npm test      # the full simulation from the test report (~90 s)
+```
+
+Latest full run: **391,372 checks, 0 failures.** See [TEST_REPORT.md](TEST_REPORT.md). GitHub Actions runs the tests, the build and a security audit on every push.
+
+## Deployment
+
+The repo deploys to Vercel from `main` (`vercel.json` serves the `frontend` folder). The app needs no server of its own and no secret keys: the Supabase URL and publishable key are public by design, and row-level security protects the data.
 
 ## Project structure
 
 ```
 AI-Financial-Copilot/
-├── backend/
-│   ├── src/
-│   │   ├── server.js                Express app, security headers, routes, DB connection middleware
-│   │   ├── config/                  db.js (MongoDB), store.js (JSON file store), categories.js
-│   │   ├── controllers/             account, transaction and EMI request handlers
-│   │   ├── services/
-│   │   │   ├── dataService.js       storage layer + UPI PIN checks + transfers
-│   │   │   ├── financialEngine.js   safe-to-spend, risk status, overdue EMIs, forecasts
-│   │   │   ├── seedData.js          demo accounts (shared with the browser demo)
-│   │   │   └── seedService.js       loads the demo data
-│   │   ├── models/                  Mongoose schemas
-│   │   ├── routes/                  /api/account, /api/transactions, /api/emi
-│   │   └── scripts/exportBackup.js  JSON backup export
-│   ├── tests/                       api.test.js (HTTP), engine.test.js (dates and maths)
-│   └── nodemon.json                 dev watcher settings
 ├── frontend/
-│   ├── public/                      web app manifest and icon
 │   ├── src/
-│   │   ├── App.jsx                  app shell: top bar, sidebar / bottom nav, sheets, URL per tab
-│   │   ├── pages/                   Home, Insights, EMIs, History, Profile
-│   │   ├── flows/                   Pay, check balance, change PIN, receive (My QR), EMI, transaction sheets
-│   │   ├── components/              TransactionRow, charts/ (projection, donut, calendar), ui/ (Sheet, PinPad, MoneySplit, Help, ...)
-│   │   ├── lib/                     formatting, "Can I afford it?" simulator, display settings, read aloud
-│   │   ├── services/                api.js (HTTP client), browserApi.js (in-page API for the demo)
-│   │   └── styles/index.css         design system (dark + light themes)
-│   └── scripts/                     build-demo.mjs, serve-browser-api.mjs
-├── .github/workflows/ci.yml         tests and builds on every push and pull request
-├── api/index.js                     serverless entry wrapping the Express app
-├── docs/                            screenshots, backup and recovery guide
-├── AUDIT_REPORT.md
-├── UPGRADES.md
-├── CONTRIBUTING.md
+│   │   ├── App.jsx                 sign-in gate, setup, navigation, instant saving, autopay
+│   │   ├── config.js               Supabase URL and publishable key
+│   │   ├── pages/                  Auth, Onboarding, Home, Activity (history), Insights, EMIs, Assistant, Settings
+│   │   ├── flows/                  sheets: transaction, EMI, mark paid, match with bank, upload, confirm
+│   │   ├── components/             charts (projection, donut, calendar, trend, credit gauge), theme picker, UI parts
+│   │   ├── lib/                    engine, statement reader, categories, EMI maths, credit estimate, advisor, offline AI
+│   │   ├── data/                   store.js (Supabase) and mockStore.js (test mode only)
+│   │   └── styles/index.css        design system with six themes
+│   └── tests/                      unit tests, simulation, sample statements
+├── supabase/migrations/            database tables, security rules, storage bucket
+├── docs/                           screenshots, latest simulation report
+├── TEST_REPORT.md                  test results in simple English
+├── CHANGES.md                      everything that changed in version 2
+├── AUDIT_REPORT.md                 code audit
+├── UPGRADES.md                     research and roadmap
 └── vercel.json
 ```
 
-## Run it locally
+## Research behind the design
 
-You need **Node.js 20.19+ or 22.12+** (Vite 8 requirement; tested on 22).
+- **One simple spending limit, not many small budgets.** Research found that splitting money into many small category budgets led people to overspend, justifying one category against another ([Think Forward Initiative](https://www.thinkforwardinitiative.com/research/budget-apps-might-they-actually-make-you-spend-more)). So FinCopilot leads with one number.
+- **Pace, not just totals.** Simply checking a budget app often can increase spending ([BehavioralEconomics.com](https://www.behavioraleconomics.com/the-budgeting-app-trap-when-spending-information-backfires/)). So alerts compare your pace with your own usual month.
+- **Reminders before due dates reduce missed loan payments.** Shown in a 13-million-person field experiment ([PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11789030/)). So EMIs due within 3 days are flagged, and autopay is one tap.
+- **Older users need simplicity and trust.** Only about 15% of people over 55 in India use fintech regularly, citing complexity and fear of fraud ([Billcut](https://www.billcut.com/blogs/fintech-cultural-design-for-older-customers-making-apps-easier/)). Hence large text options, plain words, read aloud, and data that stays private.
 
-```bash
-git clone https://github.com/Jaya-Siddhartha/AI-Financial-Copilot.git
-cd AI-Financial-Copilot
-
-npm install                          # root (runs backend + frontend together)
-cd backend && npm install && cd ..
-cd frontend && npm install && cd ..
-
-npm run dev
-```
-
-- App: http://localhost:5173
-- API: http://localhost:5000/api/health
-
-The backend creates the two demo accounts on first start. Use PIN `1234`. To start over, use **Profile → Reset demo data**.
-
-## Browser-only demo
-
-The whole app can also run as one HTML page with no server, which is handy for sharing a clickable demo.
-
-```bash
-cd frontend
-npm run build:demo        # → frontend/dist-demo/fincopilot-demo.html
-```
-
-API calls are answered inside the page by `src/services/browserApi.js`. It reuses the backend's engine, categories and seed data, so every number matches the real server. Data is saved in the browser's localStorage, and the demo shows placeholder bank names.
-
-To confirm the in-page API behaves exactly like the server, run the API tests against it:
-
-```bash
-cd frontend && node scripts/serve-browser-api.mjs 5055 &
-cd ../backend && API_URL=http://127.0.0.1:5055/api node --test tests/api.test.js
-```
-
-## Tests
-
-```bash
-cd backend && npm test        # 26 tests: 18 API tests + 8 engine tests
-cd frontend && npm run build  # production build must succeed
-```
-
-- **API tests** cover the full demo scenario (both accounts, transfers, balance check, EMIs, risk levels, reset), PIN required for payments and EMIs, PIN lockout and reset, verifying and changing the PIN, amount limits, EMI ownership and validation, category whitelist and ownership, input limits, recipient matching, the rent-based forecast, security headers, and that "Can I afford it?" predicts the dashboard after a real payment.
-- **Engine tests** fix the date and check month-end due days, overdue EMIs, early payments, new EMIs, the 30-day spending window, the 7-day chart and negative outlooks.
-
-GitHub Actions runs all of these, both builds, and the API tests against the in-browser API on every push and pull request.
-
-## Configuration
-
-Copy `.env.example` to `backend/.env` for backend settings. `VITE_API_BASE_URL` goes in `frontend/.env`.
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORT` | `5000` | Backend port |
-| `MONGODB_URI` | empty | MongoDB connection string. Without it, data is stored in `backend/data/db.json` |
-| `CORS_ORIGIN` | empty (any origin) | Comma-separated list of sites allowed to call the API from a browser |
-| `VITE_API_BASE_URL` | `/api` | API base URL for the frontend, if hosted separately |
-| `FINCOPILOT_DATA_DIR` | `backend/data` | Where the JSON store keeps `db.json` (used by the tests) |
-
-## Deployment
-
-The repo deploys to Vercel as-is with `vercel.json`.
-
-- If the Vercel project is connected to GitHub, pushing a branch creates a preview deployment and merging to `main` updates production.
-- Manual deploy: `npm i -g vercel && vercel --prod` from the repo root.
-- **Set `MONGODB_URI` in Vercel.** Without it, data is kept per server instance in `/tmp`, so balances can differ between requests and reset on cold start.
-
-After deploying, check that `/api/health` returns `online` and that a ₹1 payment with PIN `1234` succeeds.
-
-## API reference
-
-All routes are under `/api`. Responses are JSON with `success` and either `data` or `message`.
-
-| Method | Path | Body / query | Purpose |
-|---|---|---|---|
-| GET | `/health` | | Health check |
-| GET | `/account/all` | | Demo accounts for the switcher |
-| GET | `/account/dashboard` | `?userId=` | Balances, safe-to-spend, status, EMIs, insights, recent transactions |
-| POST | `/account/check-balance` | `{ userId, upiPin }` | Check balance with PIN |
-| POST | `/account/verify-pin` | `{ userId, upiPin }` | Check the current PIN (first step of changing it) |
-| POST | `/account/update-pin` | `{ userId, oldPin, newPin }` | Change UPI PIN (new PIN must differ) |
-| POST | `/account/reset` | | Restore demo data |
-| GET | `/transactions` | `?userId=&type=&category=&search=&limit=` | History |
-| POST | `/transactions/payment` | `{ senderId, recipientPhone \| recipientUpi \| recipientName, amount, upiPin, note }` | Pay |
-| POST | `/transactions/receive` | `{ userId, senderName, amount, category, note }` | Simulate an incoming payment |
-| PATCH | `/transactions/:id/category` | `{ userId, category }` | Change a transaction's category (owner only) |
-| GET | `/emi` | `?userId=` | List EMIs (status: `upcoming`, `overdue`, `paid_this_cycle`, `closed`) |
-| POST | `/emi` | `{ userId, name, lender, amount, dueDay, remainingInstallments }` | Add an EMI |
-| POST | `/emi/:id/pay` | `{ userId, upiPin }` | Pay an EMI |
-| DELETE | `/emi/:id` | `?userId=` | Remove an EMI |
-
-Error codes: `400` invalid input or wrong PIN, `403` no PIN set, `404` not found, `423` PIN locked, `500` server error.
-
-## Contributing
-
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch naming, code style and the checks to run before opening a pull request. Good first issues are listed in [UPGRADES.md](UPGRADES.md).
-
-## Documentation
-
-| File | What's in it |
-|---|---|
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Full audit: every issue found, evidence, fix status, verification |
-| [UPGRADES.md](UPGRADES.md) | Research on 2026 UPI and money apps, what was built from it, and the roadmap |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
-| [docs/DATABASE_BACKUP_AND_RECOVERY.md](docs/DATABASE_BACKUP_AND_RECOVERY.md) | Backups (`cd backend && npm run backup`) and recovery |
+More in [UPGRADES.md](UPGRADES.md).

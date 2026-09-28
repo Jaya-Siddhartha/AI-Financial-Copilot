@@ -1,23 +1,27 @@
 {
-  "name": "ai-financial-copilot-frontend",
+  "name": "fincopilot-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
   },
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "build": "vite build",
     "preview": "vite preview",
-    "build:demo": "node scripts/build-demo.mjs"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "axios": "^1.7.7",
+    "@mlc-ai/web-llm": "^0.2.85",
+    "@supabase/supabase-js": "^2.117.2",
     "lucide-react": "^0.441.0",
-    "qrcode": "^1.5.4",
+    "papaparse": "^5.7.0",
+    "pdfjs-dist": "^6.3.289",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "read-excel-file": "^9.3.10"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

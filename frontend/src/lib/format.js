@@ -80,11 +80,9 @@ export const inrShort = (value) => {
 export const shortDate = (daysFromNow) =>
   new Date(Date.now() + daysFromNow * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-export const apiError = (err, fallback = 'Something went wrong. Please try again.') =>
-  err?.response?.data?.message || (err?.code === 'ERR_NETWORK' ? 'Cannot reach the server. Check your connection.' : fallback);
+export const errorText = (err, fallback = 'Something went wrong. Please try again.') => err?.message || fallback;
 
-// Seed data marks banks as "(Simulated UPI)"; the app already says it is a demo, so hide the suffix.
-export const bankLabel = (account = {}) =>
-  `${String(account.bankName || 'Bank').replace(/\s*\(simulated[^)]*\)/i, '')} ${account.accountNumberMasked || ''}`.trim();
-
-export const bankName = (account = {}) => String(account.bankName || 'Bank').replace(/\s*\(simulated[^)]*\)/i, '');
+export const todayInput = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};

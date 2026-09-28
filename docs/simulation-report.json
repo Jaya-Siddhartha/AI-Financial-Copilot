@@ -1,0 +1,103 @@
+{
+  "date": "2026-09-28T14:40:31.923Z",
+  "seed": 777,
+  "runs": 20000,
+  "totalMs": 87289,
+  "perSituationMs": 4.36,
+  "fiveThousandTxMs": 19,
+  "biggestHistory": 200,
+  "statements": 4000,
+  "totalChecks": 391372,
+  "failed": 0,
+  "checks": {
+    "balance = bank figure + in − out since then": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "balance shown is never negative": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "safe to spend = balance − EMIs due − usual spending − buffer": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "safe to spend is never more than the balance": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "buffer is exactly the user choice": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "status matches the numbers": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "turning the buffer off never lowers safe to spend": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "\"Can I afford it?\" = the dashboard after spending": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "spending money never raises safe to spend": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "7-day projection has 8 days and never goes up": {
+      "pass": 18336,
+      "fail": 0
+    },
+    "EMI countdown is between 0 and 31 days": {
+      "pass": 39922,
+      "fail": 0
+    },
+    "EMI has a valid status": {
+      "pass": 39922,
+      "fail": 0
+    },
+    "after paying, an EMI is never still late": {
+      "pass": 38721,
+      "fail": 0
+    },
+    "after paying an upcoming EMI it cannot be paid again this cycle": {
+      "pass": 16023,
+      "fail": 0
+    },
+    "credit health is between 300 and 900": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "assistant always answers in words": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "money questions go to the exact calculator": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "no bank figure → no balance, no safe-to-spend": {
+      "pass": 1664,
+      "fail": 0
+    },
+    "no EMI waiting → nothing kept for everyday spending": {
+      "pass": 3759,
+      "fail": 0
+    },
+    "5,000 transactions are analysed in under 150 ms": {
+      "pass": 1,
+      "fail": 0
+    },
+    "statement: every transaction is found": {
+      "pass": 4000,
+      "fail": 0
+    },
+    "statement: amounts, directions and dates are exact": {
+      "pass": 4000,
+      "fail": 0
+    }
+  },
+  "failures": []
+}

@@ -1,12 +1,12 @@
 {
   "name": "FinCopilot",
   "short_name": "FinCopilot",
-  "description": "UPI payments that tell you how much is safe to spend before your EMIs are due.",
+  "description": "Know what you can spend before you spend it: expenses, EMIs and statements in one place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#070907",
-  "theme_color": "#070907",
+  "background_color": "#f2eff7",
+  "theme_color": "#5f259f",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
