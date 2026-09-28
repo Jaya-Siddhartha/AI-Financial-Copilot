@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Sparkles } from 'lucide-react';
 import { Alert } from '../components/ui/Alert';
 import { ThemePicker } from '../components/ThemePicker';
 import { errorText, inr } from '../lib/format';
@@ -33,6 +33,17 @@ export function OnboardingPage({ profile, actions }) {
     }
     setStep((s) => s + 1);
     return undefined;
+  };
+
+  const trySample = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await actions.loadSample();
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
   };
 
   const finish = async () => {
@@ -155,6 +166,15 @@ export function OnboardingPage({ profile, actions }) {
             </button>
           )}
         </div>
+
+        {step === 1 && (
+          <div className="sample-offer">
+            <span>Just looking around?</span>
+            <button type="button" className="link-btn" onClick={trySample} disabled={busy}>
+              <Sparkles size={18} /> Try it with sample data
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

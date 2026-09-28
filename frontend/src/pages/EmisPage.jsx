@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Calculator, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Alert } from '../components/ui/Alert';
-import { emiBurden, loanSummary, yearlySchedule } from '../lib/emiCalc';
+import { emiBurden, loanSummary, prepaymentSavings, yearlySchedule } from '../lib/emiCalc';
 import { dueText, inr, ordinal } from '../lib/format';
 
 const STATUS = {
@@ -68,7 +68,8 @@ function EmiList({ data, analysis: a, actions }) {
           a.emis.map((emi) => {
             const st = STATUS[emi.status];
             const total = Number(emi.totalMonths) || 0;
-            const done = total ? Math.min(1, Math.max(0, (total - Number(emi.remainingMonths)) / total)) : null;
+            const known = emi.remainingMonths !== null && emi.remainingMonths !== undefined && emi.remainingMonths !== '';
+            const done = total && known ? Math.min(1, Math.max(0, (total - Number(emi.remainingMonths)) / total)) : null;
             return (
               <article className={`emi ${emi.status === 'overdue' ? 'late' : ''}`} key={emi.id}>
                 <div className="emi-top">
@@ -77,12 +78,13 @@ function EmiList({ data, analysis: a, actions }) {
                     <div className="row-title">{emi.name}</div>
                     <div className="row-sub">{emi.lender ? `${emi.lender} · ` : ''}{ordinal(emi.dueDay)} of every month</div>
                   </div>
-                  <span className={`chip ${st.tone}`}>{emi.status === 'upcoming' ? dueText(emi.daysRemaining, emi) : emi.status === 'overdue' ? `${emi.daysOverdue} days late` : st.label}</span>
+                  <span className={`chip ${st.tone}`}>{emi.status === 'upcoming' ? dueText(emi.daysRemaining, emi) : emi.status === 'overdue' ? `${emi.daysOverdue} day${emi.daysOverdue === 1 ? '' : 's'} late` : st.label}</span>
                 </div>
                 <div className="emi-foot">
                   <div className="emi-amount">{inr(emi.amount)}</div>
                   <span className="muted small">
-                    {emi.remainingMonths} month{emi.remainingMonths === 1 ? '' : 's'} left{done !== null && ` · ${Math.round(done * 100)}% repaid`}
+                    {known ? `${emi.remainingMonths} month${Number(emi.remainingMonths) === 1 ? '' : 's'} left` : 'Months left not set'}
+                    {done !== null && ` · ${Math.round(done * 100)}% repaid`}
                   </span>
                 </div>
                 {done !== null && <div className="progress"><span style={{ width: `${done * 100}%` }} /></div>}
@@ -181,6 +183,8 @@ function EmiCalculator({ data, analysis: a, actions }) {
         )}
       </section>
 
+      {valid && <Prepayment principal={principal} rate={rate} months={months} />}
+
       {valid && schedule.length > 0 && (
         <section className="card">
           <h2 className="card-title" style={{ marginBottom: 8 }}>Year by year</h2>
@@ -202,8 +206,39 @@ function EmiCalculator({ data, analysis: a, actions }) {
   );
 }
 
+// "What if I pay extra once?" Keeps the EMI the same and shows how much sooner the loan ends.
+function Prepayment({ principal, rate, months }) {
+  const [extra, setExtra] = useState('50000');
+  const [after, setAfter] = useState('12');
+  const afterMonth = Math.min(Math.max(1, Number(after) || 1), Math.max(1, months - 1));
+  const r = useMemo(() => prepaymentSavings(principal, rate, months, Number(extra) || 0, afterMonth), [principal, rate, months, extra, afterMonth]);
+  return (
+    <section className="card">
+      <h2 className="card-title">Pay extra once</h2>
+      <p className="card-sub" style={{ marginBottom: 12 }}>Got a bonus? See what a one-time extra payment saves. Your EMI stays the same; the loan ends sooner.</p>
+      <div className="field-row">
+        <div className="field">
+          <label className="field-label" htmlFor="pre-amt">Extra payment (₹)</label>
+          <input id="pre-amt" className="input" inputMode="numeric" value={extra} onChange={(e) => setExtra(e.target.value.replace(/\D/g, '').slice(0, 9))} />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="pre-after">After how many EMIs</label>
+          <input id="pre-after" className="input" inputMode="numeric" value={after} onChange={(e) => setAfter(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+        </div>
+      </div>
+      <div className="compare">
+        <div className="compare-item"><div className="compare-label">Interest saved</div><div className="compare-value text-green">{inr(r.interestSaved)}</div></div>
+        <div className="compare-item"><div className="compare-label">Loan ends</div><div className="compare-value">{r.monthsSaved} month{r.monthsSaved === 1 ? '' : 's'} sooner</div></div>
+      </div>
+      <p className="muted small" style={{ marginTop: 8 }}>
+        {r.monthsBefore} EMIs become {r.monthsAfter}. Check your lender's prepayment charges first (floating-rate home loans usually have none).
+      </p>
+    </section>
+  );
+}
+
 export function EmisPage(props) {
-  const [view, setView] = useState('list');
+  const [view, setView] = useState(props.initialView || 'list');
   return (
     <div className="page narrow">
       <div className="card-head" style={{ marginBottom: 0 }}>

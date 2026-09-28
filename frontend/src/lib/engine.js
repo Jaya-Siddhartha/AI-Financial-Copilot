@@ -2,6 +2,7 @@
 // is worked out instantly on the device and can be unit tested with a fixed "now".
 
 import { CATEGORIES, isFixed } from './categories.js';
+import { wholePercents } from './format.js';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_DAYS = 30;
@@ -47,7 +48,9 @@ export const enrichEmi = (emi, now = new Date()) => {
   const prevDue = dueDateIn(nextDue.getFullYear(), nextDue.getMonth() - 1, dueDay);
   const created = emi.createdAt ? startOfDay(new Date(emi.createdAt)) : null;
 
-  const closed = Number(emi.remainingMonths) <= 0;
+  // Months left not set (null or blank) means the loan is still running, not finished.
+  const left = emi.remainingMonths;
+  const closed = left !== null && left !== undefined && left !== '' && Number(left) <= 0;
   const overdue = !closed && (!created || prevDue >= created) && !paidFor(emi, prevDue);
   const paid = !closed && !overdue && paidFor(emi, nextDue);
   const daysOverdue = overdue ? Math.round((today - prevDue) / DAY_MS) : 0;
@@ -70,6 +73,29 @@ export const autopayDue = (emis, now = new Date()) =>
     .filter((e) => e.autopay)
     .map((e) => enrichEmi(e, now))
     .filter((e) => e.status === 'overdue' || (e.status === 'upcoming' && e.daysRemaining === 0));
+
+// Every due date an EMI has passed without being recorded, oldest first ('YYYY-MM-DD', at most
+// `max`). After weeks away from the app, autopay records each monthly debit, not just the latest.
+// Stops at the last recorded payment, the day the EMI was added, and the months left.
+export const missedDueDates = (emi, now = new Date(), max = 12) => {
+  if (enrichEmi(emi, now).status === 'closed') return [];
+  const today = startOfDay(now);
+  const dueDay = Number(emi.dueDay) || 1;
+  // The latest due date on or before today.
+  let latest = dueDateIn(today.getFullYear(), today.getMonth(), dueDay);
+  if (latest > today) latest = dueDateIn(today.getFullYear(), today.getMonth() - 1, dueDay);
+  const created = emi.createdAt ? startOfDay(new Date(emi.createdAt)) : null;
+  const dates = [];
+  for (let i = 0; i < max; i++) {
+    const d = dueDateIn(latest.getFullYear(), latest.getMonth() - i, dueDay);
+    // Without a start date only the latest due date can be known to be missed.
+    if (paidFor(emi, d) || (created && d < created) || (!created && i > 0)) break;
+    dates.unshift(toDayString(d));
+  }
+  const left = emi.remainingMonths;
+  const known = left !== null && left !== undefined && left !== '' && !Number.isNaN(Number(left));
+  return known ? dates.slice(0, Math.max(0, Number(left))) : dates;
+};
 
 // A single payment above this is a one-off (a big purchase or transfer), not everyday spending.
 export const oneOffThreshold = (monthlyIncome) => Math.max(5000, Math.round((Number(monthlyIncome) || 0) * 0.2));
@@ -223,10 +249,12 @@ export const analyze = ({ profile, transactions = [], emis = [], now = new Date(
     .slice(0, 8);
 
   // 6. Charts
-  const windowTotal = Object.values(categoryMap).reduce((s, a) => s + a, 0);
   const categoryBreakdown = Object.entries(categoryMap)
-    .map(([category, amount]) => ({ category, amount: round2(amount), percentage: windowTotal ? Math.round((amount / windowTotal) * 100) : 0 }))
+    .map(([category, amount]) => ({ category, amount: round2(amount) }))
     .sort((a, b) => b.amount - a.amount);
+  wholePercents(categoryBreakdown.map((c) => c.amount)).forEach((p, i) => {
+    categoryBreakdown[i].percentage = p;
+  });
 
   const trend = [];
   for (let i = 5; i >= 0; i--) {
@@ -266,6 +294,17 @@ export const analyze = ({ profile, transactions = [], emis = [], now = new Date(
     }
   }
 
+  // Daily allowance: safe-to-spend spread over the days until the next salary (or month end
+  // when no income is set), so people know what they can spend today.
+  let allowance = null;
+  if (safeToSpend !== null) {
+    const toSalary = income > 0 ? getDaysUntil(profile.salaryDay || 1, now) : null;
+    const toMonthEnd = daysInMonth(now.getFullYear(), now.getMonth()) - now.getDate() + 1;
+    // Salary due today: it may not have arrived yet, so plan for the full month ahead.
+    const days = toSalary === null ? toMonthEnd : toSalary === 0 ? daysInMonth(now.getFullYear(), now.getMonth()) : toSalary;
+    allowance = { perDay: Math.floor(safeToSpend / Math.max(1, days)), days: Math.max(1, days), until: toSalary === null ? 'month end' : 'salary' };
+  }
+
   const events = dueSoon.map((e) => ({ type: 'emi', title: e.name, amount: Number(e.amount), daysRemaining: e.daysRemaining, overdue: e.status === 'overdue' }));
   if (income > 0) events.push({ type: 'salary', title: 'Salary', amount: income, daysRemaining: getDaysUntil(profile.salaryDay || 1, now) });
   events.sort((a, b) => a.daysRemaining - b.daysRemaining);
@@ -285,6 +324,7 @@ export const analyze = ({ profile, transactions = [], emis = [], now = new Date(
     expectedSpend: Math.round(expectedSpend),
     buffer,
     safeToSpend,
+    allowance,
     status,
     shortBy,
     month: { spent: round2(cur.spent), income: round2(cur.income), everyday: round2(cur.everyday) },

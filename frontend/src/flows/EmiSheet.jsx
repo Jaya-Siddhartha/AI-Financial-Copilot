@@ -31,6 +31,7 @@ export function EmiSheet({ emi, prefill, actions, onClose }) {
     if (!form.name.trim()) return setError('Give the loan a name, e.g. "Car loan".');
     if (!(amount > 0)) return setError('Enter the monthly EMI amount.');
     if (!(dueDay >= 1 && dueDay <= 31)) return setError('Due day must be between 1 and 31.');
+    if (String(form.remainingMonths).trim() === '') return setError('Enter how many EMIs are left (0 if the loan is finished).');
     if (!(remaining >= 0 && remaining <= 600)) return setError('Months left must be between 0 and 600.');
     if (total !== null && (total < remaining || total > 600)) return setError('Total months must be at least the months left (and at most 600).');
     setBusy(true);

@@ -38,17 +38,20 @@ export function ActivityPage({ data, actions }) {
     );
   }, [data.transactions, search, type, category]);
 
+  // Month totals always cover every matching transaction in that month; only the rows shown are
+  // limited, so a month cut off by "Show more" still shows its full total.
   const groups = useMemo(() => {
     const map = new Map();
-    for (const t of filtered.slice(0, limit)) {
+    filtered.forEach((t, i) => {
       const k = monthKey(t.date);
-      if (!map.has(k)) map.set(k, { txs: [], out: 0, in: 0 });
+      if (!map.has(k)) map.set(k, { txs: [], out: 0, in: 0, count: 0 });
       const g = map.get(k);
-      g.txs.push(t);
+      if (i < limit) g.txs.push(t);
+      g.count += 1;
       if (t.type === 'debit') g.out += t.amount;
       else g.in += t.amount;
-    }
-    return [...map.entries()];
+    });
+    return [...map.entries()].filter(([, g]) => g.txs.length > 0);
   }, [filtered, limit]);
 
   const download = () => {
@@ -110,7 +113,10 @@ export function ActivityPage({ data, actions }) {
           groups.map(([month, g]) => (
             <div key={month}>
               <div className="month-head">
-                <span className="month-label">{month}</span>
+                <span className="month-label">
+                  {month}
+                  {g.count > g.txs.length ? ` · ${g.txs.length} of ${g.count} shown` : ''}
+                </span>
                 <span className="month-totals">
                   <span className="text-danger">−{inr(g.out)}</span> · <span className="text-green">+{inr(g.in)}</span>
                 </span>

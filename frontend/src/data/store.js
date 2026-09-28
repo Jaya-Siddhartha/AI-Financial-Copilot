@@ -2,8 +2,10 @@
 // localStorage): no account, no login, no server, and it works offline. Settings → Your data
 // can download a backup file and restore it on another device.
 
+import { buildSampleData } from '../lib/sampleData.js';
+
 const KEY = 'fincopilot.data.v2';
-const VERSION = 2;
+const VERSION = 3;
 
 const uid = () =>
   globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -22,7 +24,7 @@ const freshProfile = () => ({
   onboarded: false,
 });
 
-const empty = () => ({ version: VERSION, profile: freshProfile(), transactions: [], emis: [], statements: [] });
+const empty = () => ({ version: VERSION, profile: freshProfile(), transactions: [], emis: [], statements: [], creditScores: [], goals: [] });
 
 const read = () => {
   try {
@@ -66,6 +68,19 @@ const check = (ok, message) => {
 };
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
+// Newest score first; for two scores on the same day, the one added last comes first.
+const newestScoreFirst = (a, b) => b.date.localeCompare(a.date) || String(b.addedAt || '').localeCompare(String(a.addedAt || ''));
+
+// Keeps only the items that pass `clean`, so one broken entry in a backup cannot break the app.
+const keepValid = (items, clean) =>
+  (Array.isArray(items) ? items : []).flatMap((item) => {
+    try {
+      return [clean(item)];
+    } catch {
+      return [];
+    }
+  });
+
 const cleanTx = (t) => {
   const amount = Math.round(Number(t.amount) * 100) / 100;
   check(amount > 0 && amount <= 1e9, 'Enter an amount above ₹0.');
@@ -103,6 +118,9 @@ export const loadEverything = async () => {
     transactions: [...db.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)),
     emis: db.emis,
     statements: db.statements,
+    creditScores: [...db.creditScores].sort(newestScoreFirst),
+    goals: db.goals,
+    sample: Boolean(db.sample),
   });
 };
 
@@ -198,6 +216,82 @@ export const deleteStatement = async (statement, { withTransactions }) =>
     db.statements = db.statements.filter((s) => s.id !== statement.id);
   });
 
+// ---------- credit scores (typed in, or read from the user's own credit report) ----------
+
+const BUREAUS = ['CIBIL', 'Experian', 'Equifax', 'CRIF High Mark'];
+
+const cleanScore = (entry) => {
+  const score = Math.round(Number(entry.score));
+  check(score >= 300 && score <= 900, 'A credit score is between 300 and 900.');
+  check(BUREAUS.includes(entry.bureau), 'Choose which bureau the score is from.');
+  const date = String(entry.date || '').slice(0, 10);
+  check(/^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(new Date(date).getTime()), 'Enter the date of the score.');
+  check(new Date(date).getTime() <= Date.now() + 86400000, 'The date cannot be in the future.');
+  const d = entry.details && typeof entry.details === 'object' ? entry.details : null;
+  const count = (v) => (Number.isInteger(v) && v >= 0 && v < 1000 ? v : null);
+  return {
+    score,
+    bureau: entry.bureau,
+    date,
+    source: entry.source === 'report' ? 'report' : 'manual',
+    details: d ? { activeAccounts: count(d.activeAccounts), overdueAccounts: count(d.overdueAccounts), enquiries: count(d.enquiries) } : null,
+  };
+};
+
+export const addCreditScore = async (entry) =>
+  transaction(() => {
+    const saved = { ...cleanScore(entry), id: uid(), addedAt: new Date().toISOString() };
+    db.creditScores.push(saved);
+    return clone(saved);
+  });
+
+export const deleteCreditScore = async (id) =>
+  transaction(() => {
+    db.creditScores = db.creditScores.filter((c) => c.id !== id);
+  });
+
+// ---------- savings goals ----------
+
+const cleanGoal = (g) => {
+  const name = String(g.name || '').trim().slice(0, 60);
+  check(name.length > 0, 'Give the goal a name.');
+  const target = Math.round(Number(g.target) * 100) / 100;
+  check(target > 0 && target <= 1e9, 'Enter how much you want to save.');
+  const saved = Math.max(0, Math.round(Number(g.saved || 0) * 100) / 100);
+  check(saved <= 1e9, 'That amount is too large.');
+  const targetDate = g.targetDate ? String(g.targetDate).slice(0, 10) : null;
+  check(!targetDate || !Number.isNaN(new Date(targetDate).getTime()), 'Enter a valid date.');
+  return { name, target, saved, targetDate };
+};
+
+export const saveGoal = async (goal) =>
+  transaction(() => {
+    const clean = cleanGoal(goal);
+    if (goal.id) {
+      const g = db.goals.find((x) => x.id === goal.id);
+      check(g, 'That goal no longer exists.');
+      Object.assign(g, clean);
+      return clone(g);
+    }
+    const saved = { ...clean, id: uid(), createdAt: new Date().toISOString() };
+    db.goals.push(saved);
+    return clone(saved);
+  });
+
+export const deleteGoal = async (id) =>
+  transaction(() => {
+    db.goals = db.goals.filter((g) => g.id !== id);
+  });
+
+// ---------- sample data ----------
+
+export const loadSampleData = async () =>
+  transaction(() => {
+    const sample = buildSampleData(new Date());
+    db = { ...empty(), ...sample, profile: { ...freshProfile(), ...sample.profile, theme: db.profile.theme, textSize: db.profile.textSize } };
+    return true;
+  });
+
 // ---------- backup ----------
 
 export const exportBackup = () =>
@@ -215,8 +309,13 @@ export const importBackup = async (text) => {
     version: VERSION,
     profile: { ...freshProfile(), ...data.profile },
     transactions: data.transactions.map((t) => ({ ...cleanTx(t), id: t.id || uid() })),
-    emis: (data.emis || []).map((e) => ({ ...e, id: e.id || uid() })),
-    statements: data.statements || [],
+    emis: keepValid(data.emis, (e) => {
+      checkEmi(e);
+      return { ...pickEmi(e), id: e.id || uid(), createdAt: e.createdAt || new Date().toISOString() };
+    }),
+    statements: Array.isArray(data.statements) ? data.statements : [],
+    creditScores: keepValid(data.creditScores, (c) => ({ ...cleanScore(c), id: c.id || uid(), addedAt: c.addedAt || null })),
+    goals: keepValid(data.goals, (g) => ({ ...cleanGoal(g), id: g.id || uid(), createdAt: g.createdAt || null })),
   };
   const before = db;
   db = next;

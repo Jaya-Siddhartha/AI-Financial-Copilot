@@ -4,6 +4,11 @@
 import { inr } from './format.js';
 import { emiBurden, loanSummary } from './emiCalc.js';
 import { whatIf } from './engine.js';
+import { scoreBand } from './creditReport.js';
+import { goalPlan, GOAL_STATUS, monthlySurplus } from './goals.js';
+
+const dayText = (ymd) => new Date(`${ymd}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const perDayText = (a) => (a.allowance && a.safeToSpend > 0 ? ` That is about ${inr(a.allowance.perDay)} a day for the next ${a.allowance.days} day${a.allowance.days === 1 ? '' : 's'} (until ${a.allowance.until}).` : '');
 
 const when = (e) => (e.status === 'overdue' ? `${e.daysOverdue} day${e.daysOverdue === 1 ? '' : 's'} late` : e.daysRemaining === 0 ? 'due today' : e.daysRemaining === 1 ? 'due tomorrow' : `due in ${e.daysRemaining} days`);
 
@@ -55,7 +60,7 @@ export const suggestions = ({ analysis: a, profile, credit }) => {
 };
 
 // Short summary of the user's money, used as the AI's only source of facts.
-export const factSheet = ({ analysis: a, profile, credit }) => {
+export const factSheet = ({ analysis: a, profile, credit, creditScores, goals }) => {
   const lines = [
     `Name: ${profile.fullName || 'User'}`,
     `Monthly income: ${inr(profile.monthlyIncome)}; salary day: ${profile.salaryDay}`,
@@ -70,7 +75,18 @@ export const factSheet = ({ analysis: a, profile, credit }) => {
     `Repeating payments: ${a.recurring.map((r) => `${r.label} ~${inr(r.amount)}`).join(', ') || 'none found'}`,
   ];
   if (a.pace) lines.push(`Everyday spending this month so far ${inr(a.pace.spentSoFar)}, usual by this date ${inr(a.pace.usualByNow)}`);
+  if (a.allowance && a.safeToSpend > 0) lines.push(`Daily allowance: about ${inr(a.allowance.perDay)} a day for ${a.allowance.days} days until ${a.allowance.until}`);
+  const real = creditScores?.[0];
+  if (real) lines.push(`Real credit score (added by the user): ${real.bureau} ${real.score}/900 (${scoreBand(real.score).label}) on ${dayText(real.date)}`);
   if (credit) lines.push(`Estimated credit health: ${credit.score}/900 (${credit.label}), an estimate, not a bureau score`);
+  if (goals?.length) {
+    const surplus = monthlySurplus(a, profile);
+    const items = goals.map((g) => {
+      const p = goalPlan(g, surplus);
+      return `${g.name} ${inr(p.saved)} of ${inr(p.target)}${p.months && p.left ? `, needs ${inr(p.perMonth)} a month` : ''}`;
+    });
+    lines.push(`Savings goals: ${items.join('; ')}`);
+  }
   return lines.join('\n');
 };
 
@@ -86,7 +102,7 @@ const amountIn = (text) => {
 
 // Which kind of question this is. Money decisions are always answered by the exact calculator,
 // never by the language model.
-export const DECISION_INTENTS = ['afford', 'loan', 'safe', 'emi', 'where', 'score', 'recurring', 'daily'];
+export const DECISION_INTENTS = ['afford', 'loan', 'safe', 'emi', 'where', 'score', 'recurring', 'daily', 'goal'];
 
 export const intentOf = (question) => {
   const q = String(question).toLowerCase();
@@ -97,8 +113,9 @@ export const intentOf = (question) => {
   if (/safe|how much.*(spend|left)|spend.*today|budget/.test(q)) return 'safe';
   if (/emi|loan|due/.test(q)) return 'emi';
   if (/where|most|biggest|spent on|category|categories/.test(q)) return 'where';
+  if (/score|cibil|credit|experian|equifax/.test(q)) return 'score';
+  if (/\bgoals?\b|saving (up )?for/.test(q)) return 'goal';
   if (/save|saving|cut|reduce/.test(q)) return 'save';
-  if (/score|cibil|credit/.test(q)) return 'score';
   if (/subscription|repeat|recurring/.test(q)) return 'recurring';
   return 'general';
 };
@@ -125,7 +142,7 @@ export const answer = (question, ctx) => {
   }
   if (intent === 'daily') {
     if (!a.hasBalance) return 'Start by adding your bank balance on the Home screen. After that, just check the big "You can spend safely" number each day: if you stay under it, your EMIs are safe.';
-    return `Just look at the big number on the Home screen: "You can spend safely". Today it is ${inr(a.safeToSpend)}. If you spend less than that, your EMIs stay covered. Tap "Match with bank" once a week so the numbers stay right.`;
+    return `Just look at the big number on the Home screen: "You can spend safely". Today it is ${inr(a.safeToSpend)}.${perDayText(a)} If you spend less than that, your EMIs stay covered. Tap "Match with bank" once a week so the numbers stay right.`;
   }
 
   if (intent === 'afford') {
@@ -137,7 +154,7 @@ export const answer = (question, ctx) => {
   }
   if (intent === 'safe') {
     if (!a.hasBalance) return 'Add your bank balance first (Home → Update balance), and I will tell you how much is safe to spend.';
-    return `You can safely spend ${inr(a.safeToSpend)}. That keeps ${inr(a.totalDue)} for EMIs, about ${inr(a.expectedSpend)} for everyday needs until the next EMI${a.buffer ? ` and your ${inr(a.buffer)} cushion` : ''}.`;
+    return `You can safely spend ${inr(a.safeToSpend)}. That keeps ${inr(a.totalDue)} for EMIs, about ${inr(a.expectedSpend)} for everyday needs until the next EMI${a.buffer ? ` and your ${inr(a.buffer)} cushion` : ''}.${perDayText(a)}`;
   }
   if (intent === 'emi') {
     if (!a.emis.length) return 'You have no EMIs added. Add them in the EMIs tab so I can protect them.';
@@ -157,9 +174,31 @@ export const answer = (question, ctx) => {
     parts.push(`Try moving ${inr(Math.round((profile.monthlyIncome || 0) * 0.1))} to savings on salary day, before you start spending.`);
     return parts.join(' ');
   }
-  if (intent === 'score' && ctx.credit) {
-    const weakest = [...ctx.credit.factors].sort((x, y) => x.score - y.score)[0];
-    return `Your estimated credit health is ${ctx.credit.score} out of 900 (${ctx.credit.label}). This is an estimate from your data, not your CIBIL score. To improve it: ${weakest.tip}`;
+  if (intent === 'score') {
+    const real = ctx.creditScores?.[0];
+    const weakest = ctx.credit ? [...ctx.credit.factors].sort((x, y) => x.score - y.score)[0] : null;
+    const tip = weakest ? ` To improve it: ${weakest.tip}` : ' Pay every EMI and card bill on time, and keep card use low.';
+    if (real) {
+      const band = scoreBand(real.score);
+      const prev = ctx.creditScores[1];
+      const diff = prev ? real.score - prev.score : 0;
+      const change = prev ? ` That is ${diff === 0 ? 'the same as' : `${Math.abs(diff)} points ${diff > 0 ? 'up' : 'down'} from`} your ${prev.bureau} ${prev.score} on ${dayText(prev.date)}.` : '';
+      return `Your latest ${real.bureau} score is ${real.score} out of 900 (${band.label}), from ${dayText(real.date)}. ${band.note}${change}${tip}`;
+    }
+    const est = ctx.credit ? `Your estimated credit health is ${ctx.credit.score} out of 900 (${ctx.credit.label}), worked out from your data here. ` : '';
+    return `${est}I cannot see your CIBIL score: bureaus only share it with lenders and licensed partners. Add it on the Credit score page by typing it in or uploading your free credit report PDF (each bureau gives one free report a year).${tip}`;
+  }
+  if (intent === 'goal') {
+    const goals = ctx.goals || [];
+    if (!goals.length) return 'You have no savings goals yet. Add one in Insights → Savings goals, for example an emergency fund of 3 months of expenses, and I will tell you how much to put aside each month.';
+    const surplus = monthlySurplus(a, profile);
+    const parts = goals.map((g) => {
+      const p = goalPlan(g, surplus);
+      if (p.status === 'done') return `${g.name}: reached (${inr(p.target)}).`;
+      return `${g.name}: ${inr(p.saved)} of ${inr(p.target)} saved${p.months ? `, put aside ${inr(p.perMonth)} a month for ${p.months} month${p.months === 1 ? '' : 's'}` : ''} (${GOAL_STATUS[p.status].label.toLowerCase()}).`;
+    });
+    if (surplus !== null) parts.push(`You usually have about ${inr(Math.max(0, surplus))} left at the end of a month.`);
+    return parts.join(' ');
   }
   if (intent === 'recurring') {
     if (!a.recurring.length) return 'I have not found repeating payments yet. They show up after two months of statements.';

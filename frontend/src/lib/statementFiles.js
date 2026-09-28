@@ -2,6 +2,7 @@
 // returns its transactions. PDF, CSV and Excel (.xlsx) are supported.
 
 import { detectSource, parseRows, parseTextLines, summarizePeriod } from './statementParser.js';
+import { parseCreditReport } from './creditReport.js';
 
 export class StatementError extends Error {
   constructor(code, message) {
@@ -14,7 +15,7 @@ const extension = (name) => String(name).toLowerCase().split('.').pop();
 
 // PDF text comes as positioned pieces; pieces on the same line (same height on the page) are
 // joined left to right, with a double space where there is a visible gap (a column break).
-const pdfLines = async (file, password) => {
+export const pdfLines = async (file, password) => {
   const pdfjs = await import('pdfjs-dist');
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
@@ -99,4 +100,21 @@ export const readStatement = async (file, password) => {
     throw new StatementError('EMPTY', 'No transactions were found in this file. Check it is a transaction statement, not a summary.');
   }
   return { transactions, source: detectSource(`${file.name} ${text.slice(0, 3000)}`), period: summarizePeriod(transactions) };
+};
+
+// Reads the score and key facts from a credit report PDF (CIBIL, Experian, Equifax, CRIF).
+export const readCreditReport = async (file, password) => {
+  if (!/\.pdf$/i.test(file.name)) throw new StatementError('TYPE', 'Upload the credit report as a PDF.');
+  if (file.size > 10 * 1024 * 1024) throw new StatementError('TOO_BIG', 'This file is over 10 MB.');
+  const lines = await pdfLines(file, password);
+  const facts = parseCreditReport(lines.join(' '));
+  if (!facts.score) {
+    throw new StatementError(
+      facts.noHistory ? 'NO_HISTORY' : 'NO_SCORE',
+      facts.noHistory
+        ? 'This report says there is no credit history yet (shown as NH or -1). That is normal before your first loan or card.'
+        : 'No score between 300 and 900 was found in this file. Check it is your credit report, or type the score in instead.'
+    );
+  }
+  return facts;
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Repeat } from 'lucide-react';
+import { ChevronRight, Repeat } from 'lucide-react';
 import { StatusChip } from '../components/ui/StatusChip';
 import { Alert } from '../components/ui/Alert';
 import { Help } from '../components/ui/Help';
@@ -9,6 +9,7 @@ import { CategoryDonut } from '../components/charts/CategoryDonut';
 import { MoneyCalendar } from '../components/charts/MoneyCalendar';
 import { TrendBars } from '../components/charts/TrendBars';
 import { CreditGauge } from '../components/charts/CreditGauge';
+import { GoalsCard } from '../components/GoalsCard';
 import { whatIf } from '../lib/engine';
 import { suggestions } from '../lib/advisor';
 import { dueText, inr, statusTone } from '../lib/format';
@@ -121,6 +122,8 @@ export function InsightsPage({ data, analysis: a, credit, engineInput, actions }
             )}
           </section>
 
+          <GoalsCard data={data} analysis={a} actions={actions} />
+
           <section className="card">
             <h2 className="card-title">Things to do</h2>
             <div className="stack" style={{ marginTop: 12 }}>
@@ -135,7 +138,12 @@ export function InsightsPage({ data, analysis: a, credit, engineInput, actions }
 
         <div className="col">
           <section className="card">
-            <h2 className="card-title">Credit health (estimate)</h2>
+            <div className="card-head">
+              <h2 className="card-title">Credit health (estimate)</h2>
+              <button type="button" className="link-btn" onClick={() => actions.go('credit')}>
+                Real score <ChevronRight size={18} />
+              </button>
+            </div>
             <CreditGauge credit={credit} />
           </section>
 

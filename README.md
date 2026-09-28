@@ -2,28 +2,35 @@
 
 **Know what you can spend before you spend it.**
 
-FinCopilot is an expense and EMI manager for people in India. Upload your PhonePe, Google Pay, Paytm or bank statements (or add expenses by hand), add your loans, and it tells you one simple thing: **how much you can spend without missing an EMI**. It warns you when you are overspending, reminds you before EMIs are due, and has an AI assistant that runs on your own device.
+FinCopilot is an expense and EMI manager for people in India. Upload your PhonePe, Google Pay, Paytm or bank statements (or add expenses by hand), add your loans, and it tells you one simple thing: **how much you can spend without missing an EMI**, and what that means **per day until your salary**. It warns you when you are overspending, reminds you before EMIs are due, tracks your **real CIBIL score** (typed in or read from your free credit report PDF), plans **savings goals**, and has an AI assistant that runs on your own device.
+
+**What makes it different from PhonePe, Paytm or Google Pay:** those apps help you *pay*. FinCopilot helps you *not overspend*. It works across all of them at once (upload their statements side by side), protects your EMIs first, needs no account or KYC, and keeps every rupee of your data on your own phone.
 
 It is built to be easy for everyone, from a 20-year-old student to a 60-year-old first-time smartphone user: one big number, plain words, big buttons, a text-size setting, six colour themes and a "Read aloud" button.
 
 > FinCopilot does not move money and is not a bank. It reads what you give it and helps you decide.
 
 - **Live app:** https://fincopilot-jaya-siddharthas-projects.vercel.app
+- **Try it in 5 seconds:** open the app and tap **Try it with sample data** (a made-up person with 4 months of history).
 - **Test report (simple English):** [TEST_REPORT.md](TEST_REPORT.md) · **What changed:** [CHANGES.md](CHANGES.md) · **Audit:** [AUDIT_REPORT.md](AUDIT_REPORT.md)
 
-| Home | Upload up to 5 statements | Your safety buffer |
+| Home: safe to spend + per day | Your real CIBIL score | Savings goals |
 |---|---|---|
-| ![Home](docs/screenshots/mobile-home.png) | ![Upload](docs/screenshots/mobile-upload.png) | ![Buffer](docs/screenshots/mobile-settings-buffer.png) |
+| ![Home](docs/screenshots/mobile-home.png) | ![Credit score](docs/screenshots/mobile-credit-score.png) | ![Goals](docs/screenshots/mobile-goals.png) |
 
-| EMI calculator | Credit health estimate | Ask the assistant |
+| Read your credit report PDF | Upload up to 5 statements | Your safety buffer |
 |---|---|---|
-| ![EMI calculator](docs/screenshots/mobile-emi-calculator.png) | ![Credit health](docs/screenshots/mobile-credit-health.png) | ![Assistant](docs/screenshots/mobile-assistant.png) |
+| ![Add score](docs/screenshots/mobile-add-score.png) | ![Upload](docs/screenshots/mobile-upload.png) | ![Buffer](docs/screenshots/mobile-settings-buffer.png) |
+
+| EMI calculator | Pay extra once (prepayment) | Ask the assistant |
+|---|---|---|
+| ![EMI calculator](docs/screenshots/mobile-emi-calculator.png) | ![Prepayment](docs/screenshots/mobile-prepayment.png) | ![Assistant](docs/screenshots/mobile-assistant.png) |
 
 | Doomsday | Dark | Saffron | Ocean | Light |
 |---|---|---|---|---|
 | ![Doomsday](docs/screenshots/theme-doomsday.png) | ![Dark](docs/screenshots/theme-dark.png) | ![Saffron](docs/screenshots/theme-saffron.png) | ![Ocean](docs/screenshots/theme-ocean.png) | ![Light](docs/screenshots/theme-light.png) |
 
-![Desktop insights](docs/screenshots/desktop-insights.png)
+![Desktop home](docs/screenshots/desktop-home.png)
 
 ---
 
@@ -32,7 +39,7 @@ It is built to be easy for everyone, from a 20-year-old student to a 60-year-old
 1. [What it does](#what-it-does)
 2. [How "safe to spend" works](#how-safe-to-spend-works)
 3. [The offline AI](#the-offline-ai)
-4. [Credit health estimate](#credit-health-estimate)
+4. [Your CIBIL score](#your-cibil-score)
 5. [Tech and architecture](#tech-and-architecture)
 6. [Run it locally](#run-it-locally)
 7. [Your data](#your-data)
@@ -47,18 +54,21 @@ It is built to be easy for everyone, from a 20-year-old student to a 60-year-old
 
 | Feature | What you get |
 |---|---|
-| **No sign-up** | Open the app and start. No login, no password, no account. |
+| **No sign-up** | Open the app and start. No login, no password, no account. Or tap **Try it with sample data** first. |
 | **Simple setup** | Name, income and salary day → your bank balance → your safety buffer → your theme. Four short steps. |
-| **Home** | One big "You can spend safely" figure, your balance and how it was worked out, four big buttons, your next EMI, tips and recent transactions. |
+| **Home** | One big "You can spend safely" figure, **"about ₹X a day until salary"**, your balance and how it was worked out, four big buttons, your next EMI, your credit score, tips and recent transactions. |
 | **Upload statements** | Up to **5 files at once**: PhonePe, Google Pay, Paytm, BHIM or any bank, as **PDF (including password-locked), Excel (.xlsx) or CSV**. Files are read on your device. A preview lets you **tick or untick every transaction** and change its category. Duplicates (the same payment in two statements, or already saved) are found and unticked for you. |
 | **Add by hand** | Money out or money in, with the category picked automatically from the description. |
 | **Balance** | Worked out from your transactions: the last figure you confirmed with your bank, plus money in, minus money out. **Match with bank** resets it and tells you if something happened outside the app (cash, bank charges, other apps). |
 | **Safety buffer (your choice)** | In Settings: switch it on or off, and pick ₹1,000 / ₹2,000 / ₹3,000 / ₹5,000 / 5% of income, or type any amount. |
 | **EMIs** | Add loans, see what is due and what is late, mark as paid, **autopay** (records the EMI as paid automatically on its due date), months left and % repaid, and how much of your income goes to EMIs. |
-| **EMI calculator** | Monthly EMI, total interest, a year-by-year schedule, whether it fits your income, and "Add as EMI". |
+| **EMI calculator** | Monthly EMI, total interest, a year-by-year schedule, whether it fits your income, and "Add as EMI". **Pay extra once** shows how much interest a bonus or lump sum saves and how many months sooner the loan ends. |
+| **Your CIBIL score** | Type in your CIBIL, Experian, Equifax or CRIF score, or **upload the free credit report PDF** (even password-locked) and FinCopilot reads the score, date, active and overdue accounts on your device. See the history, the change since last time, and a reminder when it is over 6 months old. |
+| **Savings goals** | "Emergency fund ₹1,00,000 by June": how much to put aside each month, a progress bar, and whether it fits what you usually have left at the end of a month. |
 | **Stop overspending** | Spending-pace alert ("faster than usual this month"), category spikes, repeating payments (subscriptions), a 7-day balance forecast, a calendar of money in and out, and a "Can I afford it?" check. |
-| **Credit health estimate** | A 300–900 estimate from your data with the six factors behind it, and a tip for each. Clearly labelled as an estimate, not your CIBIL score. |
-| **Assistant** | Ask in plain words. Money decisions get exact answers from the calculator; open questions can use the **offline AI** that runs on your device. |
+| **Credit health estimate** | A 300–900 estimate from your data with the six factors behind it, and a tip for each, shown next to your real score. Clearly labelled as an estimate. |
+| **Assistant** | Ask in plain words ("What is my CIBIL score?", "How are my goals going?", "Can I afford 5000?"). Money decisions get exact answers from the calculator; open questions can use the **offline AI** that runs on your device. |
+| **Works offline** | Once opened, the app installs itself and opens with no internet (a service worker keeps its files). |
 | **Six themes and text size** | Purple (default), Light, Dark, Doomsday, Saffron, Ocean; Normal, Large or Extra large text. Remembered on your device. |
 | **Private** | Everything is saved on your device (browser storage) and never sent to a server. **Download backup / Restore backup** moves it to another phone or computer. |
 
@@ -76,6 +86,7 @@ safe to spend = your balance
 - **When no EMI is waiting**, nothing is kept aside for everyday spending: safe to spend = balance − buffer.
 - **Status:** *Safe* (all covered), *Be careful* (covered but the buffer is not, or an EMI is late), *At risk* (you could be short for an EMI; it shows by how much).
 - **"Can I afford it?"** runs the exact same calculation with the purchase added, so it always matches what you will see after spending.
+- **Per day:** safe to spend ÷ days until your next salary (or the end of the month if you did not set an income), rounded down, so spending that much each day never goes over.
 
 The engine is [`frontend/src/lib/engine.js`](frontend/src/lib/engine.js). It runs on your device, so the screen updates instantly (about 20 ms) and works with thousands of transactions.
 
@@ -91,9 +102,22 @@ The assistant can use a real language model, **Qwen 2.5 (Apache-2.0)**, running 
 
 Details and test results: [TEST_REPORT.md §5](TEST_REPORT.md#5-the-offline-ai).
 
-## Credit health estimate
+## Your CIBIL score
 
-Real credit scores (CIBIL, Experian, Equifax, CRIF) come from credit bureaus, which only give access to registered businesses through paid, KYC-checked partners. There is no free, legal way for an app like this to fetch your real score. So FinCopilot shows an **estimate** on the same 300–900 scale, from what it can see:
+**Why FinCopilot does not fetch your CIBIL score by itself:** credit bureaus (TransUnion CIBIL, Experian, Equifax, CRIF High Mark) only share scores with RBI-registered lenders and licensed partners, with your PAN and consent, under a paid business agreement. PhonePe, Paytm and Google Pay show a free score because they have that partnership. There is no free public API, and FinCopilot never asks for your PAN.
+
+**What FinCopilot does instead (free and legal):**
+
+1. By RBI rules, **each bureau gives you one free full credit report a year**. The Credit score page links to all four.
+2. **Upload that PDF** (password-locked is fine). FinCopilot reads the score, the bureau, the report date, and the number of active and overdue accounts and enquiries, **on your device**. You check them, then save.
+3. Or just **type in** a score you saw in any app.
+4. You get a history chart, the change since last time, the band (Excellent 750+, Good 700+, Fair 650+, Needs work 550+, Poor), and the assistant uses your real score.
+
+Tested with made-up reports in CIBIL, Experian, Equifax and CRIF layouts, "NH" (no history) reports and wrong passwords ([`creditReport.js`](frontend/src/lib/creditReport.js)).
+
+### Credit health estimate
+
+Next to your real score, FinCopilot shows an **estimate** on the same 300–900 scale, from what it can see, so you know what is helping or hurting:
 
 | Factor | Weight |
 |---|---|
@@ -104,17 +128,18 @@ Real credit scores (CIBIL, Experian, Equifax, CRIF) come from credit bureaus, wh
 | Length of history seen | 10% |
 | Number of loans at once | 5% |
 
-It is always labelled as an estimate. A real bureau score can be added later through a licensed partner (see [UPGRADES.md](UPGRADES.md)).
+It is always labelled as an estimate. Automatic fetching through a licensed partner is described in [UPGRADES.md](UPGRADES.md).
 
 ## Tech and architecture
 
 ```text
 Your phone or computer: everything runs here
 ┌──────────────────────────────────────────────────────────┐
-│ Screens: Home, History, Insights, EMIs, Assistant,        │
-│ Settings                                                  │
-│ Money engine, statement reader, EMI maths, credit         │
-│ estimate                                                  │
+│ Screens: Home, History, Insights, EMIs, Credit score,     │
+│ Assistant, Settings                                       │
+│ Money engine, statement and credit report reader, EMI     │
+│ maths, goals, credit estimate                             │
+│ Service worker: opens offline after the first visit       │
 │ Offline AI: WebLLM + Qwen 2.5 on WebGPU                   │
 │ Data: saved in the browser (localStorage), with backup    │
 │ file download and restore                                 │
@@ -128,7 +153,7 @@ Vercel only serves the app's files. No server, no database, no login.
 | Data | Saved on the device (localStorage), all-or-nothing writes, JSON backup and restore |
 | Statement reading | pdf.js (PDF, including locked files), Papa Parse (CSV), read-excel-file (.xlsx) |
 | Offline AI | WebLLM running Qwen 2.5 Instruct (0.5B or 1.5B) on WebGPU |
-| Tests | `node:test`: unit tests + a seeded simulation; GitHub Actions |
+| Tests | `node:test` unit tests + a seeded simulation, and an end-to-end robot in headless Chrome; GitHub Actions |
 | Hosting | Vercel (static files only) |
 
 Saving is "optimistic": the screen changes immediately, the data is saved in the background, and if saving fails the change is undone with a clear message.
@@ -146,7 +171,7 @@ npm run dev
 
 Open http://localhost:5173.
 
-Sample statements for trying the upload are in [`frontend/tests/fixtures`](frontend/tests/fixtures). The PhonePe sample's password is `9876543210`.
+Sample statements for trying the upload are in [`frontend/tests/fixtures`](frontend/tests/fixtures). The PhonePe sample's password is `9876543210`. `credit_report.pdf` is a made-up CIBIL-style report for a fictional person; its password is `ASHA1990`.
 
 ## Your data
 
@@ -161,11 +186,12 @@ Sample statements for trying the upload are in [`frontend/tests/fixtures`](front
 
 ```bash
 cd frontend
-npm test                                  # 34 tests, including a 3,000-situation simulation (~15 s)
-SIM_RUNS=20000 SIM_SEED=777 npm test      # the full simulation from the test report (~90 s)
+npm test                                  # 46 tests, including a 3,000-situation simulation (~15 s)
+SIM_RUNS=20000 SIM_SEED=777 npm test      # the full simulation from the test report (~95 s)
+npm run test:e2e                          # builds, then a robot uses every screen in headless Chrome (~25 s)
 ```
 
-Latest full run: **391,372 checks, 0 failures.** See [TEST_REPORT.md](TEST_REPORT.md). GitHub Actions runs the tests, the build and a security audit on every push.
+Latest full run: **719,526 simulation checks and 114 end-to-end checks, 0 failures.** See [TEST_REPORT.md](TEST_REPORT.md). GitHub Actions runs the tests, the build, the end-to-end robot and a security audit on every push.
 
 ## Deployment
 
@@ -179,17 +205,18 @@ AI-Financial-Copilot/
 │   ├── src/
 │   │   ├── App.jsx                 setup, navigation, instant saving, autopay
 │   │   ├── config.js               app settings
-│   │   ├── pages/                  Onboarding, Home, Activity (history), Insights, EMIs, Assistant, Settings
-│   │   ├── flows/                  sheets: transaction, EMI, mark paid, match with bank, upload, confirm
-│   │   ├── components/             charts (projection, donut, calendar, trend, credit gauge), theme picker, UI parts
-│   │   ├── lib/                    engine, statement reader, categories, EMI maths, credit estimate, advisor, offline AI
+│   │   ├── pages/                  Onboarding, Home, Activity (history), Insights, EMIs, Credit score, Assistant, Settings
+│   │   ├── flows/                  sheets: transaction, EMI, mark paid, match with bank, upload, credit score, goal, confirm
+│   │   ├── components/             charts (projection, donut, calendar, trend, credit gauge), goals card, theme picker, UI parts
+│   │   ├── lib/                    engine, statement and credit report readers, categories, EMI maths, goals, credit estimate, advisor, sample data, offline AI
 │   │   ├── data/store.js           on-device storage, backup and restore
 │   │   └── styles/index.css        design system with six themes
-│   └── tests/                      unit tests, simulation, sample statements
+│   ├── public/sw.js                offline support
+│   └── tests/                      unit tests, simulation, end-to-end robot (e2e.mjs), sample statements and credit report
 ├── supabase/migrations/            optional cloud database schema, for future sync
 ├── docs/                           screenshots, latest simulation report
 ├── TEST_REPORT.md                  test results in simple English
-├── CHANGES.md                      everything that changed in version 2
+├── CHANGES.md                      what changed in each version
 ├── AUDIT_REPORT.md                 code audit
 ├── UPGRADES.md                     research and roadmap
 └── vercel.json

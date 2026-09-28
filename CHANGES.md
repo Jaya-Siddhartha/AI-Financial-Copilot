@@ -1,5 +1,45 @@
 # What changed in FinCopilot
 
+## 2.2: Your real CIBIL score, daily allowance, goals, and a full test robot (29 September 2026)
+
+### New
+
+- **Credit score page.** Add your real score from CIBIL, Experian, Equifax or CRIF High Mark:
+  - **Type it in**, or **upload the free credit report PDF** (password-locked works). FinCopilot reads the score, bureau, report date, active accounts, overdue accounts and enquiries on your device, shows what it found, and you save it.
+  - Score gauge with a band (Excellent / Good / Fair / Needs work / Poor), history chart, change since last time ("▼ Down 7 points since 14 Sept 2026"), and a reminder when the score is over 6 months old.
+  - Links to the free yearly report from all four bureaus, and a plain explanation of why no app can fetch your CIBIL score without a paid bureau partnership and your PAN.
+  - The FinCopilot estimate is shown underneath, so you can see what helps or hurts.
+  - Home has a credit score card; the assistant answers "What is my CIBIL score?" with your real score.
+- **"About ₹X a day until salary"** under the big number on Home: safe to spend divided by the days until your next salary (or month end), rounded down so it never overshoots.
+- **Savings goals** (Insights): name, amount, saved so far, target date. Shows the monthly amount needed, a progress bar, and whether it fits what you usually have left each month (On track / Possible, but tight / More than you usually save / Reached).
+- **Pay extra once** (EMI calculator): how much interest a one-time prepayment saves and how many months sooner the loan ends.
+- **Try it with sample data**: one tap on the first screen (or Settings → Your data) loads a made-up person with 4 months of history, 2 EMIs, 3 credit scores and 2 goals. A banner makes clear it is sample data, and "Use my own data" clears it.
+- **Works offline**: a service worker keeps the app's files, so after the first visit the app opens with no internet.
+- The Home **EMI calculator** button now opens the calculator directly (it used to open the EMI list).
+- New assistant questions: "What is my CIBIL score?" and "How are my goals going?". "How much can I spend?" now also gives the per-day amount.
+
+### Fixed (found by the new tests)
+
+- **History month totals were wrong with more than 200 transactions.** Totals were added up only from the rows on screen, so the month cut off at row 200 showed a partial total. Totals now always cover every transaction in the month, and the header says "120 of 180 shown" when rows are hidden.
+- **Category percentages could add up to 99% or 101%** (for example three equal categories showed 33% each). They now always add up to exactly 100%.
+- **Pay extra once after 0 EMIs saved nothing**: a lump sum paid before the first EMI was ignored. Fixed.
+- **Credit report enquiries**: "Enquiries in last 30 days 1" was read as 30 enquiries. Now read as 1.
+- **Restoring a backup dropped each EMI's start date**, which could move its first due date. Now kept. A backup with a broken entry (for example a score of "abc") now skips that entry instead of failing or breaking the screen.
+- **Two credit scores on the same day** could swap order; the one added last now comes first.
+- **Autopay after a long break**: if the app was not opened for several months, only the latest missed EMI was recorded, so months left and History were wrong. It now records every missed month (oldest first, up to 12, never more than the months left). Found by the test robot.
+- **A blank "Months left" made a new loan show as already closed.** It is now required (0 means finished), and an EMI without it (from an old backup) is treated as still running and shows "Months left not set".
+- "1 days late" now reads "1 day late".
+- Accessibility: the chat "Read aloud" button was 16 px wide (now 32 px, above the 24 px minimum), and the buffer switch now has a proper name for screen readers.
+- Layout: header buttons such as "Add score" no longer break onto two lines on small phones; score history bars show the day ("14 Sept") so two scores in one month are not both labelled "Sept 26".
+
+### Tests
+
+- **46 unit tests** (was 34): credit report reading for all four bureau layouts and "NH" reports, the password-locked credit report PDF, daily allowance, goals, prepayment, sample data on any day of the year, credit scores and goals in the store, restoring a damaged backup, and autopay catch-up after a long break.
+- **Simulation** now also checks that the numbers tally: categories add up to total spending, percentages add up to 100, monthly totals match the transactions, "this month" matches the trend chart, the daily allowance never exceeds safe to spend, goal maths, prepayment never costs more, the assistant quotes the real CIBIL score, and autopay catch-up leaves no EMI late. Full run: 20,000 situations, **719,526 checks, 0 failures**.
+- **New end-to-end robot** (`npm run test:e2e`): a real headless Chrome uses the built app like a person, **114 checks** from onboarding to offline mode. It now runs in GitHub Actions on every push.
+
+---
+
 ## 2.1: No login (28 September 2026)
 
 Sign-in was causing problems, so it has been removed.

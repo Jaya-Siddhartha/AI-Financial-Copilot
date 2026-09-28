@@ -1,26 +1,30 @@
 import React from 'react';
 
-// Half-circle gauge for the 300–900 credit health estimate, with the factors behind it.
-export function CreditGauge({ credit }) {
+// Half-circle gauge on the 300–900 credit score scale.
+export function ScoreGauge({ score, label, tone, caption }) {
+  const share = Math.min(1, Math.max(0, (Number(score) - 300) / 600));
+  const len = Math.PI * 80;
+  return (
+    <div className="credit-gauge">
+      <svg viewBox="0 0 200 112" aria-hidden="true" focusable="false">
+        <path d="M20 100 A80 80 0 0 1 180 100" className="gauge-track" />
+        <path d="M20 100 A80 80 0 0 1 180 100" className={`gauge-fill ${tone}`} strokeDasharray={`${share * len} ${len}`} />
+      </svg>
+      <div className="credit-score" role="img" aria-label={`${score} out of 900, ${label}`}>
+        <span className="credit-number">{score}</span>
+        <span className={`credit-band ${tone}`}>{label}</span>
+        {caption && <span className="credit-caption">{caption}</span>}
+      </div>
+    </div>
+  );
+}
+
+// The estimate: gauge plus the factors behind it.
+export function CreditGauge({ credit, showGauge = true }) {
   if (!credit) return null;
-  const share = (credit.score - 300) / 600;
-  const r = 80;
-  const len = Math.PI * r;
   return (
     <div className="credit">
-      <div className="credit-gauge">
-        <svg viewBox="0 0 200 112" aria-hidden="true" focusable="false">
-          <path d="M20 100 A80 80 0 0 1 180 100" className="gauge-track" />
-          <path d="M20 100 A80 80 0 0 1 180 100" className={`gauge-fill ${credit.tone}`} strokeDasharray={`${share * len} ${len}`} />
-        </svg>
-        <div className="credit-score">
-          <span className="credit-number">{credit.score}</span>
-          <span className={`credit-band ${credit.tone}`}>{credit.label}</span>
-        </div>
-      </div>
-      <p className="muted small" style={{ textAlign: 'center' }}>
-        Out of 900. An estimate from your FinCopilot data{credit.confidence === 'low' ? ' (not much data yet, so treat it as a rough guide)' : ''}. Your real CIBIL score comes from your full credit report.
-      </p>
+      {showGauge && <ScoreGauge score={credit.score} label={credit.label} tone={credit.tone} caption="FinCopilot estimate" />}
       <ul className="factors">
         {credit.factors.map((f) => (
           <li key={f.name}>

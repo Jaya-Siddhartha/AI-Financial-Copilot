@@ -5,7 +5,7 @@ import { answer, DECISION_INTENTS, factSheet, intentOf } from '../lib/advisor';
 import { aiSupported, askModel, isModelCached, loadModel, MODELS, modelLoaded, numbersGrounded, stopModel } from '../lib/ai';
 import { canSpeak, speak } from '../lib/speech';
 
-const CHIPS = ['How much can I spend?', 'Can I afford 5000?', 'Where does my money go?', 'How can I save more?', 'When are my EMIs due?', 'How is my credit health?'];
+const CHIPS = ['How much can I spend?', 'Can I afford 5000?', 'Where does my money go?', 'How can I save more?', 'When are my EMIs due?', 'What is my CIBIL score?', 'How are my goals going?'];
 
 // Remembered between visits to the tab (the model itself stays loaded in its worker).
 let saved = [];
@@ -17,7 +17,7 @@ export function AssistantPage({ data, analysis, credit, engineInput }) {
   const [ai, setAi] = useState({ state: modelLoaded() ? 'ready' : 'off', progress: 0, text: '', error: '' });
   const [cached, setCached] = useState({ smart: false, lite: false });
   const endRef = useRef(null);
-  const ctx = { analysis, profile: data.profile, credit, engineInput };
+  const ctx = { analysis, profile: data.profile, credit, engineInput, creditScores: data.creditScores, goals: data.goals };
 
   useEffect(() => {
     saved = messages;

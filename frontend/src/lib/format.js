@@ -24,6 +24,30 @@ export const formatShortDate = (value) =>
     hour12: true,
   });
 
+// A calendar date stored as YYYY-MM-DD, shown as "12 Aug 2026" (noon avoids time-zone shifts).
+export const formatDay = (ymd) =>
+  new Date(`${ymd}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// Whole-number percentages that always add up to exactly 100 (largest remainder method), so a
+// chart legend never shows 99% or 101% in total.
+export const wholePercents = (values) => {
+  const total = values.reduce((s, v) => s + Math.max(0, Number(v) || 0), 0);
+  if (!total) return values.map(() => 0);
+  const raw = values.map((v) => (Math.max(0, Number(v) || 0) / total) * 100);
+  const out = raw.map(Math.floor);
+  let left = 100 - out.reduce((s, v) => s + v, 0);
+  raw
+    .map((v, i) => ({ i, rest: v - Math.floor(v) }))
+    .sort((a, b) => b.rest - a.rest || a.i - b.i)
+    .forEach(({ i }) => {
+      if (left > 0) {
+        out[i] += 1;
+        left -= 1;
+      }
+    });
+  return out;
+};
+
 export const monthKey = (value) =>
   new Date(value).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 

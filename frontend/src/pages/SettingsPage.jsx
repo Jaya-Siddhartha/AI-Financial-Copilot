@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, FileText, LoaderCircle, ShieldCheck, Trash2, Type, Upload } from 'lucide-react';
+import { Download, FileText, LoaderCircle, ShieldCheck, Sparkles, Trash2, Type, Upload } from 'lucide-react';
 import { ThemePicker } from '../components/ThemePicker';
 import { TEXT_SIZES } from '../lib/settings';
 import { inr } from '../lib/format';
@@ -76,6 +76,7 @@ function BufferCard({ profile, actions }) {
         <label className="switch">
           <input
             type="checkbox"
+            aria-label="Keep a safety buffer"
             checked={profile.bufferEnabled}
             onChange={(e) => save({ bufferEnabled: e.target.checked, bufferAmount: e.target.checked ? Number(amount || 2000) : profile.bufferAmount }, e.target.checked ? 'Buffer turned on' : 'Buffer turned off')}
           />
@@ -191,6 +192,19 @@ function DataCard({ data, actions }) {
       },
     });
 
+  const sample = () =>
+    actions.confirm({
+      title: 'Load sample data?',
+      message: 'Everything on this device is replaced with a made-up person (Priya) so you can try every feature. Download a backup first if you want to keep your own data.',
+      confirmLabel: 'Load sample data',
+      danger: data.transactions.length > 0,
+      onConfirm: async () => {
+        await actions.loadSample();
+        actions.closeSheet();
+        actions.notify('Sample data loaded. Delete it any time below.', 'ok', true);
+      },
+    });
+
   const wipe = () =>
     actions.confirm({
       title: 'Delete all data on this device?',
@@ -208,7 +222,7 @@ function DataCard({ data, actions }) {
     <section className="card">
       <h2 className="card-title">Your data</h2>
       <p className="card-sub" style={{ marginBottom: 12 }}>
-        Saved on this device only: {data.transactions.length} transactions, {data.emis.length} EMIs. Download a backup to keep a copy or move to another phone or computer.
+        Saved on this device only: {data.transactions.length} transactions, {data.emis.length} EMIs, {data.creditScores.length} credit scores, {data.goals.length} goals. Download a backup to keep a copy or move to another phone or computer.
       </p>
       <div className="menu-card">
         <button type="button" className="menu-row" onClick={download}>
@@ -218,6 +232,10 @@ function DataCard({ data, actions }) {
         <button type="button" className="menu-row" onClick={() => fileRef.current?.click()} disabled={busy}>
           <span className="icon-circle">{busy ? <LoaderCircle size={20} className="spin" /> : <Upload size={20} />}</span>
           <span className="row-main">Restore from a backup file</span>
+        </button>
+        <button type="button" className="menu-row" onClick={sample}>
+          <span className="icon-circle"><Sparkles size={20} /></span>
+          <span className="row-main">Load sample data to try things out</span>
         </button>
         <button type="button" className="menu-row danger" onClick={wipe}>
           <span className="icon-circle danger"><Trash2 size={20} /></span>
@@ -280,7 +298,7 @@ export function SettingsPage({ data, actions }) {
       <section className="card">
         <h2 className="card-title" style={{ marginBottom: 8 }}><ShieldCheck size={20} /> Privacy</h2>
         <p className="muted small">
-          No account and no sign-up. Everything is saved on this device and never sent to a server. Statements are read on your device and the files are not kept. The offline AI also runs on your device and sends nothing anywhere. If you clear your browser data, FinCopilot data is cleared too, so keep a backup. FinCopilot does not move money and is not a bank. The credit health number is an estimate, not your CIBIL score.
+          No account and no sign-up. Everything is saved on this device and never sent to a server. Statements are read on your device and the files are not kept. The offline AI also runs on your device and sends nothing anywhere. If you clear your browser data, FinCopilot data is cleared too, so keep a backup. FinCopilot does not move money and is not a bank. The credit health number is an estimate; your real CIBIL score is only what you add on the Credit score page.
         </p>
       </section>
     </div>

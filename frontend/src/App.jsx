@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, CalendarClock, History, House, LoaderCircle, PieChart, Plus, RefreshCw, Settings } from 'lucide-react';
+import { Bot, CalendarClock, Gauge, History, House, LoaderCircle, PieChart, Plus, RefreshCw, Settings } from 'lucide-react';
 import { Avatar } from './components/ui/Avatar';
 import { Alert } from './components/ui/Alert';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -9,14 +9,17 @@ import { InsightsPage } from './pages/InsightsPage';
 import { EmisPage } from './pages/EmisPage';
 import { AssistantPage } from './pages/AssistantPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CreditPage } from './pages/CreditPage';
 import { TransactionSheet } from './flows/TransactionSheet';
 import { EmiSheet } from './flows/EmiSheet';
 import { PayEmiSheet } from './flows/PayEmiSheet';
 import { BalanceSheet } from './flows/BalanceSheet';
 import { UploadSheet } from './flows/UploadSheet';
 import { ConfirmSheet } from './flows/ConfirmSheet';
+import { CreditScoreSheet } from './flows/CreditScoreSheet';
+import { GoalSheet } from './flows/GoalSheet';
 import * as store from './data/store';
-import { analyze, autopayDue } from './lib/engine';
+import { analyze, autopayDue, missedDueDates, parseDay } from './lib/engine';
 import { estimateCreditHealth } from './lib/creditScore';
 import { CATEGORIES } from './lib/categories';
 import { errorText, inr } from './lib/format';
@@ -28,13 +31,22 @@ const NAV = [
   { id: 'activity', label: 'History', icon: History },
   { id: 'insights', label: 'Insights', icon: PieChart },
   { id: 'emis', label: 'EMIs', icon: CalendarClock },
+  { id: 'credit', label: 'Credit score', icon: Gauge },
   { id: 'assistant', label: 'Ask AI', icon: Bot },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 const BOTTOM = ['home', 'insights', 'emis', 'activity'].map((id) => NAV.find((n) => n.id === id));
 
+// One EMI fewer to go; stays unknown (null) if the months left were never set.
+const monthsLeftAfterPaying = (emi) => {
+  const left = Number(emi.remainingMonths);
+  return emi.remainingMonths === null || emi.remainingMonths === undefined || emi.remainingMonths === '' || Number.isNaN(left) ? null : Math.max(0, left - 1);
+};
+
+// '#calculator' opens the EMIs page on its calculator.
 const tabFromHash = () => {
   const id = window.location.hash.replace('#', '');
+  if (id === 'calculator') return 'calculator';
   return NAV.some((n) => n.id === id) ? id : 'home';
 };
 
@@ -224,7 +236,7 @@ export default function App() {
         id: emi.id,
         paidThroughDate: emi.coversDueDate,
         lastPaidDate: new Date().toISOString(),
-        remainingMonths: Math.max(0, Number(emi.remainingMonths) - 1),
+        remainingMonths: monthsLeftAfterPaying(emi),
       });
     };
 
@@ -251,6 +263,25 @@ export default function App() {
 
     const confirm = (opts) => setSheet({ type: 'confirm', ...opts });
 
+    const addCreditScore = async (entry) => {
+      const saved = await store.addCreditScore(entry);
+      patchData((d) => ({ ...d, creditScores: [saved, ...d.creditScores].sort((a, b) => b.date.localeCompare(a.date)) }));
+      return saved;
+    };
+    const deleteCreditScore = async (entry) => {
+      await store.deleteCreditScore(entry.id);
+      patchData((d) => ({ ...d, creditScores: d.creditScores.filter((c) => c.id !== entry.id) }));
+    };
+    const saveGoal = async (goal) => {
+      const saved = await store.saveGoal(goal);
+      patchData((d) => ({ ...d, goals: goal.id ? d.goals.map((g) => (g.id === saved.id ? saved : g)) : [...d.goals, saved] }));
+      return saved;
+    };
+    const deleteGoal = async (goal) => {
+      await store.deleteGoal(goal.id);
+      patchData((d) => ({ ...d, goals: d.goals.filter((g) => g.id !== goal.id) }));
+    };
+
     return {
       go,
       notify,
@@ -266,6 +297,17 @@ export default function App() {
       importStatements,
       removeStatement,
       confirm,
+      addCreditScore,
+      deleteCreditScore,
+      saveGoal,
+      deleteGoal,
+      addScore: () => setSheet({ type: 'score' }),
+      editGoal: (goal = null) => setSheet({ type: 'goal', goal }),
+      loadSample: async () => {
+        await store.loadSampleData();
+        autopayRan.current = false;
+        await load();
+      },
       openTx: (tx) => setSheet({ type: 'tx', tx }),
       newTx: (type = 'debit') => setSheet({ type: 'tx', tx: null, txType: type }),
       editEmi: (emi = null, prefill = null) => setSheet({ type: 'emi', emi, prefill }),
@@ -297,13 +339,21 @@ export default function App() {
     if (!due.length) return;
     (async () => {
       const done = [];
-      for (const emi of due) {
-        try {
-          await actions.recordEmiPayment(emi, { autopay: true, date: new Date(emi.dueDate).toISOString() });
-          done.push(`${emi.name} ${inr(emi.amount)}`);
-        } catch (err) {
-          fail(err, `Autopay for ${emi.name} could not be recorded.`);
+      for (const first of due) {
+        // Record every missed month (up to a year) after a long gap, oldest first, not just the latest.
+        let emi = first;
+        let count = 0;
+        for (const day of missedDueDates(first)) {
+          try {
+            await actions.recordEmiPayment({ ...emi, coversDueDate: day }, { autopay: true, date: parseDay(day).toISOString() });
+            count += 1;
+            emi = { ...emi, paidThroughDate: day, remainingMonths: monthsLeftAfterPaying(emi) };
+          } catch (err) {
+            fail(err, `Autopay for ${emi.name} could not be recorded.`);
+            break;
+          }
         }
+        if (count) done.push(`${first.name} ${inr(first.amount)}${count > 1 ? ` × ${count} months` : ''}`);
       }
       if (done.length) notify(`Autopay recorded: ${done.join(', ')}`, 'ok', true);
     })();
@@ -339,7 +389,9 @@ export default function App() {
     home: <HomePage {...ctx} />,
     activity: <ActivityPage {...ctx} />,
     insights: <InsightsPage {...ctx} />,
-    emis: <EmisPage {...ctx} />,
+    emis: <EmisPage key="list" {...ctx} />,
+    calculator: <EmisPage key="calc" {...ctx} initialView="calc" />,
+    credit: <CreditPage {...ctx} />,
     assistant: <AssistantPage {...ctx} />,
     settings: <SettingsPage {...ctx} />,
   };
@@ -360,6 +412,10 @@ export default function App() {
         return <UploadSheet existing={data.transactions} actions={actions} onClose={close} />;
       case 'confirm':
         return <ConfirmSheet {...sheet} onClose={close} />;
+      case 'score':
+        return <CreditScoreSheet actions={actions} onClose={close} />;
+      case 'goal':
+        return <GoalSheet goal={sheet.goal} actions={actions} onClose={close} />;
       default:
         return null;
     }
@@ -400,7 +456,7 @@ export default function App() {
             <button
               key={id}
               type="button"
-              className={`sidebar-item ${tab === id ? 'active' : ''}`}
+              className={`sidebar-item ${tab === id || (id === 'emis' && tab === 'calculator') ? 'active' : ''}`}
               onClick={() => actions.go(id)}
               aria-current={tab === id ? 'page' : undefined}
             >
@@ -415,7 +471,7 @@ export default function App() {
 
       <nav className="bottomnav" aria-label="Main">
         {BOTTOM.slice(0, 2).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => actions.go(id)} aria-current={tab === id ? 'page' : undefined}>
+          <button key={id} type="button" className={`bottomnav-item ${tab === id || (id === 'emis' && tab === 'calculator') ? 'active' : ''}`} onClick={() => actions.go(id)} aria-current={tab === id ? 'page' : undefined}>
             <Icon size={24} strokeWidth={1.8} />
             {label}
           </button>
@@ -427,7 +483,7 @@ export default function App() {
           Add
         </button>
         {BOTTOM.slice(2).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className={`bottomnav-item ${tab === id ? 'active' : ''}`} onClick={() => actions.go(id)} aria-current={tab === id ? 'page' : undefined}>
+          <button key={id} type="button" className={`bottomnav-item ${tab === id || (id === 'emis' && tab === 'calculator') ? 'active' : ''}`} onClick={() => actions.go(id)} aria-current={tab === id ? 'page' : undefined}>
             <Icon size={24} strokeWidth={1.8} />
             {label}
           </button>

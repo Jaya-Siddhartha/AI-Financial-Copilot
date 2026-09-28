@@ -8,11 +8,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'fs';
-import { analyze, computeBalance, enrichEmi, whatIf } from '../src/lib/engine.js';
+import { analyze, computeBalance, enrichEmi, missedDueDates, whatIf } from '../src/lib/engine.js';
 import { estimateCreditHealth } from '../src/lib/creditScore.js';
 import { parseRows, parseTextLines } from '../src/lib/statementParser.js';
 import { CATEGORY_LIST } from '../src/lib/categories.js';
-import { answer, intentOf, DECISION_INTENTS } from '../src/lib/advisor.js';
+import { answer, intentOf, DECISION_INTENTS, factSheet } from '../src/lib/advisor.js';
+import { goalPlan, GOAL_STATUS, monthlySurplus } from '../src/lib/goals.js';
+import { prepaymentSavings, loanSummary } from '../src/lib/emiCalc.js';
+import { wholePercents } from '../src/lib/format.js';
 
 const RUNS = Number(process.env.SIM_RUNS) || 3000;
 const STATEMENTS = Math.max(200, Math.round(RUNS / 5));
@@ -139,17 +142,68 @@ test(`simulation: ${RUNS} random money situations follow the rules`, () => {
         check('after paying, an EMI is never still late', paid.status !== 'overdue', { ...ctx, dueDay: e.dueDay, covers: e.coversDueDate });
         if (e.status === 'upcoming') check('after paying an upcoming EMI it cannot be paid again this cycle', paid.status === 'paid' || paid.status === 'closed', { ...ctx, dueDay: e.dueDay, covers: e.coversDueDate, got: paid.status });
       }
+      if (e.status === 'overdue' || (e.status === 'upcoming' && e.daysRemaining === 0)) {
+        // Autopay catch-up: record every missed due date, then nothing is late any more.
+        const days = missedDueDates(e, input.now);
+        const today = new Date(input.now.getFullYear(), input.now.getMonth(), input.now.getDate());
+        const ordered = days.every((d, i) => i === 0 || d > days[i - 1]) && days.every((d) => new Date(`${d}T00:00:00`) <= today);
+        const after = days.length ? enrichEmi({ ...e, paidThroughDate: days[days.length - 1], remainingMonths: e.remainingMonths - days.length }, input.now) : null;
+        check('autopay catch-up: missed dates are in order, never in the future, within months left', days.length >= 1 && days.length <= Math.min(12, e.remainingMonths) && ordered, { ...ctx, days, e: { dueDay: e.dueDay, createdAt: e.createdAt, remaining: e.remainingMonths } });
+        check('autopay catch-up: after recording them the EMI is not late', after && after.status !== 'overdue', { ...ctx, days, got: after?.status });
+      }
     }
 
     // Credit health
     const credit = estimateCreditHealth({ analysis: a, transactions: input.transactions, profile: input.profile });
     check('credit health is between 300 and 900', credit.score >= 300 && credit.score <= 900, { ...ctx, score: credit.score });
 
+    check('credit factor weights add up to 100%', credit.factors.reduce((s, f) => s + f.weight, 0) === 100, ctx);
+    check('every credit factor is scored 0 to 100', credit.factors.every((f) => f.score >= 0 && f.score <= 100), ctx);
+
+    // Data tally: the numbers on different screens agree with each other and with the raw data
+    const catTotal = a.categoryBreakdown.reduce((s, c) => s + c.amount, 0);
+    check('categories add up to the total spent in 30 days', Math.abs(catTotal - a.windowDebits) <= 0.01 * (a.categoryBreakdown.length + 1), { ...ctx, catTotal, windowDebits: a.windowDebits });
+    const pctTotal = a.categoryBreakdown.reduce((s, c) => s + c.percentage, 0);
+    check('category percentages add up to exactly 100%', a.categoryBreakdown.length === 0 || pctTotal === 100, { ...ctx, pctTotal });
+    const nowMs = input.now.getTime();
+    const tallyOk = a.trend.every((m, i) => {
+      const d = new Date(input.now.getFullYear(), input.now.getMonth() - (a.trend.length - 1 - i), 1);
+      const inMonth = input.transactions.filter((t) => {
+        const td = new Date(t.date);
+        return td.getTime() <= nowMs && td.getFullYear() === d.getFullYear() && td.getMonth() === d.getMonth();
+      });
+      const spent = inMonth.filter((t) => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+      const got = inMonth.filter((t) => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+      return Math.abs(round2(spent) - m.spent) < 0.011 && Math.abs(round2(got) - m.income) < 0.011;
+    });
+    check('monthly trend totals match the transactions', tallyOk, ctx);
+    check('"this month" matches the last trend bar', a.month.spent === a.trend[a.trend.length - 1].spent && a.month.income === a.trend[a.trend.length - 1].income, ctx);
+    if (a.safeToSpend !== null) {
+      const al = a.allowance;
+      check('daily allowance × days never exceeds safe to spend', al && al.perDay >= 0 && al.perDay * al.days <= a.safeToSpend + 1e-9, { ...ctx, al, safe: a.safeToSpend });
+      check('daily allowance uses all of safe to spend (rounded down)', al && (al.perDay + 1) * al.days > a.safeToSpend, { ...ctx, al, safe: a.safeToSpend });
+      check('allowance lasts 1 to 31 days', al && al.days >= 1 && al.days <= 31, { ...ctx, al });
+    } else check('no balance → no daily allowance', a.allowance === null, ctx);
+
+    // Savings goals
+    const surplus = monthlySurplus(a, input.profile);
+    const goal = { name: 'Goal', target: int(1000, 500000), saved: rand() < 0.2 ? 0 : int(0, 600000), targetDate: rand() < 0.3 ? null : new Date(nowMs + int(-60, 900) * DAY).toISOString().slice(0, 10) };
+    const plan = goalPlan(goal, surplus, input.now);
+    check('goal progress is 0 to 100%', plan.progress >= 0 && plan.progress <= 100, { ...ctx, goal, plan });
+    check('goal: saved + left = target', Math.abs(plan.saved + plan.left - plan.target) < 0.01, { ...ctx, goal, plan });
+    check('goal: monthly amount × months covers what is left', !plan.months || plan.perMonth * plan.months >= plan.left, { ...ctx, goal, plan });
+    check('goal status is known', Boolean(GOAL_STATUS[plan.status]), { ...ctx, plan });
+
     // Assistant
-    const q = pick(['how much can i spend', 'can i afford 5000', 'when is my emi due', 'where does my money go', 'take a loan of 1 lakh?', 'what should i check every day']);
-    const reply = answer(q, { analysis: a, profile: input.profile, credit, engineInput: input });
-    check('assistant always answers in words', typeof reply === 'string' && reply.length > 10 && !/undefined|NaN/.test(reply), { ...ctx, q, reply });
-    check('money questions go to the exact calculator', DECISION_INTENTS.includes(intentOf(q)), { ...ctx, q });
+    const creditScores = rand() < 0.5 ? [] : [{ score: int(300, 900), bureau: 'CIBIL', date: '2026-08-01' }, { score: int(300, 900), bureau: 'Experian', date: '2026-02-01' }].slice(0, int(1, 2));
+    const goals = rand() < 0.5 ? [] : [goal];
+    const q = pick(['how much can i spend', 'can i afford 5000', 'when is my emi due', 'where does my money go', 'take a loan of 1 lakh?', 'what should i check every day', 'what is my cibil score', 'how are my goals going', 'how can i save more']);
+    const aiCtx = { analysis: a, profile: input.profile, credit, engineInput: input, creditScores, goals };
+    const reply = answer(q, aiCtx);
+    check('assistant always answers in words', typeof reply === 'string' && reply.length > 10 && !/undefined|NaN|Infinity|\[object/.test(reply), { ...ctx, q, reply });
+    if (q !== 'how can i save more') check('money questions go to the exact calculator', DECISION_INTENTS.includes(intentOf(q)), { ...ctx, q });
+    if (q === 'what is my cibil score' && creditScores.length) check('assistant quotes the real CIBIL score when there is one', reply.includes(String(creditScores[0].score)), { ...ctx, reply });
+    check('AI fact sheet has no broken values', !/undefined|NaN|Infinity|\[object/.test(factSheet(aiCtx)), ctx);
   }
   const ms = performance.now() - started;
 
@@ -160,6 +214,28 @@ test(`simulation: ${RUNS} random money situations follow the rules`, () => {
   analyze(big);
   const bigMs = performance.now() - t0;
   check('5,000 transactions are analysed in under 150 ms', bigMs < 150, { bigMs });
+
+  // Loan maths: prepaying never costs more and never makes the loan longer
+  for (let i = 0; i < Math.max(200, RUNS / 10); i++) {
+    const principal = int(10000, 5000000);
+    const rate = pick([0, 7.5, 9.99, 12, 14, 18, 24, 36]);
+    const months = int(3, 360);
+    const extra = int(1000, principal);
+    const after = int(0, months - 1);
+    const p = prepaymentSavings(principal, rate, months, extra, after);
+    const base = loanSummary(principal, rate, months);
+    const ctx = { principal, rate, months, extra, after };
+    check('prepayment keeps the same EMI', p && Math.abs(p.emi - base.emi) < 0.01, { ...ctx, p, base: base.emi });
+    check('prepayment never adds months or interest', p && p.monthsAfter <= p.monthsBefore && p.interestSaved >= 0, { ...ctx, p });
+  }
+
+  // Percentages always add up to 100
+  for (let i = 0; i < 500; i++) {
+    const values = Array.from({ length: int(1, 12) }, () => (rand() < 0.1 ? 0 : round2(rand() * 10000)));
+    const pct = wholePercents(values);
+    const total = values.reduce((s, v) => s + v, 0);
+    check('whole percentages add up to 100', total === 0 ? pct.every((v) => v === 0) : pct.reduce((s, v) => s + v, 0) === 100, { values, pct });
+  }
 
   globalThis.simReport = { runs: RUNS, totalMs: Math.round(ms), perSituationMs: Math.round((ms / RUNS) * 100) / 100, fiveThousandTxMs: Math.round(bigMs), biggestHistory: biggest };
   const failed = Object.values(checks).reduce((n, c) => n + c.fail, 0);

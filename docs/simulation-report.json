@@ -1,72 +1,132 @@
 {
-  "date": "2026-09-28T14:40:31.923Z",
+  "date": "2026-09-28T20:09:02.475Z",
   "seed": 777,
   "runs": 20000,
-  "totalMs": 87289,
-  "perSituationMs": 4.36,
-  "fiveThousandTxMs": 19,
+  "totalMs": 88289,
+  "perSituationMs": 4.41,
+  "fiveThousandTxMs": 11,
   "biggestHistory": 200,
   "statements": 4000,
-  "totalChecks": 391372,
+  "totalChecks": 719526,
   "failed": 0,
   "checks": {
     "balance = bank figure + in − out since then": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "balance shown is never negative": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "safe to spend = balance − EMIs due − usual spending − buffer": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "safe to spend is never more than the balance": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "buffer is exactly the user choice": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "status matches the numbers": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "turning the buffer off never lowers safe to spend": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "\"Can I afford it?\" = the dashboard after spending": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "spending money never raises safe to spend": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "7-day projection has 8 days and never goes up": {
-      "pass": 18336,
+      "pass": 18407,
       "fail": 0
     },
     "EMI countdown is between 0 and 31 days": {
-      "pass": 39922,
+      "pass": 40178,
       "fail": 0
     },
     "EMI has a valid status": {
-      "pass": 39922,
+      "pass": 40178,
       "fail": 0
     },
     "after paying, an EMI is never still late": {
-      "pass": 38721,
+      "pass": 38862,
+      "fail": 0
+    },
+    "autopay catch-up: missed dates are in order, never in the future, within months left": {
+      "pass": 23316,
+      "fail": 0
+    },
+    "autopay catch-up: after recording them the EMI is not late": {
+      "pass": 23316,
       "fail": 0
     },
     "after paying an upcoming EMI it cannot be paid again this cycle": {
-      "pass": 16023,
+      "pass": 16175,
       "fail": 0
     },
     "credit health is between 300 and 900": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "credit factor weights add up to 100%": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "every credit factor is scored 0 to 100": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "categories add up to the total spent in 30 days": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "category percentages add up to exactly 100%": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "monthly trend totals match the transactions": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "\"this month\" matches the last trend bar": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "daily allowance × days never exceeds safe to spend": {
+      "pass": 18407,
+      "fail": 0
+    },
+    "daily allowance uses all of safe to spend (rounded down)": {
+      "pass": 18407,
+      "fail": 0
+    },
+    "allowance lasts 1 to 31 days": {
+      "pass": 18407,
+      "fail": 0
+    },
+    "goal progress is 0 to 100%": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "goal: saved + left = target": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "goal: monthly amount × months covers what is left": {
+      "pass": 20000,
+      "fail": 0
+    },
+    "goal status is known": {
       "pass": 20000,
       "fail": 0
     },
@@ -75,19 +135,43 @@
       "fail": 0
     },
     "money questions go to the exact calculator": {
+      "pass": 17753,
+      "fail": 0
+    },
+    "AI fact sheet has no broken values": {
       "pass": 20000,
       "fail": 0
     },
-    "no bank figure → no balance, no safe-to-spend": {
-      "pass": 1664,
+    "no EMI waiting → nothing kept for everyday spending": {
+      "pass": 3676,
       "fail": 0
     },
-    "no EMI waiting → nothing kept for everyday spending": {
-      "pass": 3759,
+    "no bank figure → no balance, no safe-to-spend": {
+      "pass": 1593,
+      "fail": 0
+    },
+    "no balance → no daily allowance": {
+      "pass": 1593,
+      "fail": 0
+    },
+    "assistant quotes the real CIBIL score when there is one": {
+      "pass": 1094,
       "fail": 0
     },
     "5,000 transactions are analysed in under 150 ms": {
       "pass": 1,
+      "fail": 0
+    },
+    "prepayment keeps the same EMI": {
+      "pass": 2000,
+      "fail": 0
+    },
+    "prepayment never adds months or interest": {
+      "pass": 2000,
+      "fail": 0
+    },
+    "whole percentages add up to 100": {
+      "pass": 500,
       "fail": 0
     },
     "statement: every transaction is found": {

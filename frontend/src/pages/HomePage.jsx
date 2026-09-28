@@ -1,12 +1,13 @@
 import React from 'react';
-import { ArrowDownLeft, Bot, Calculator, ChevronRight, FileUp, HandCoins, Info, Landmark, Minus, Volume2 } from 'lucide-react';
+import { ArrowDownLeft, Bot, Calculator, CalendarDays, ChevronRight, FileUp, Gauge, HandCoins, Info, Landmark, Minus, Sparkles, Volume2 } from 'lucide-react';
 import { IconTile } from '../components/ui/IconTile';
 import { StatusChip } from '../components/ui/StatusChip';
 import { Alert } from '../components/ui/Alert';
 import { TransactionRow } from '../components/TransactionRow';
-import { dueText, formatShortDate, inr, STATUS_META, statusTone } from '../lib/format';
+import { dueText, formatDay, formatShortDate, inr, STATUS_META, statusTone } from '../lib/format';
 import { canSpeak, speak } from '../lib/speech';
 import { suggestions } from '../lib/advisor';
+import { scoreBand } from '../lib/creditReport';
 
 export function HomePage({ data, analysis: a, credit, actions }) {
   const { profile, transactions } = data;
@@ -15,6 +16,8 @@ export function HomePage({ data, analysis: a, credit, actions }) {
   const tone = statusTone(a.status);
   const tips = suggestions({ analysis: a, profile, credit }).filter((s) => s.tone !== 'green').slice(0, 2);
   const firstName = (profile.fullName || '').split(' ')[0];
+  const latestScore = data.creditScores?.[0];
+  const allowance = a.hasBalance && a.safeToSpend > 0 ? a.allowance : null;
 
   const sentence = !a.hasBalance
     ? 'Add your bank balance to see how much is safe to spend.'
@@ -31,7 +34,7 @@ export function HomePage({ data, analysis: a, credit, actions }) {
   const readAloud = () =>
     speak(
       a.hasBalance
-        ? `You can safely spend ${inr(a.safeToSpend)}. ${sentence} Your balance is ${inr(a.balance)}.`
+        ? `You can safely spend ${inr(a.safeToSpend)}.${allowance ? ` That is about ${inr(allowance.perDay)} a day for ${allowance.days} days.` : ''} ${sentence} Your balance is ${inr(a.balance)}.`
         : sentence
     );
 
@@ -40,6 +43,32 @@ export function HomePage({ data, analysis: a, credit, actions }) {
       <div className="greeting">
         <h1 className="page-title">{firstName ? `Hi, ${firstName}` : 'Hello'}</h1>
       </div>
+
+      {data.sample && (
+        <div className="banner brand">
+          <Sparkles size={22} aria-hidden="true" />
+          <div className="banner-text">
+            <strong>This is sample data</strong> for a made-up person, so you can try everything. Nothing here is real.
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() =>
+              actions.confirm({
+                title: 'Start with your own money?',
+                message: 'The sample data will be removed and you can set up FinCopilot with your own details.',
+                confirmLabel: 'Remove sample data',
+                onConfirm: async () => {
+                  await actions.deleteAllData();
+                  actions.closeSheet();
+                },
+              })
+            }
+          >
+            Use my own data
+          </button>
+        </div>
+      )}
 
       {a.overdue[0] && (
         <div className="banner red" role="alert">
@@ -59,6 +88,15 @@ export function HomePage({ data, analysis: a, credit, actions }) {
               {a.hasBalance && <StatusChip status={a.status} />}
             </div>
             <div className="hero-value">{a.hasBalance ? inr(a.safeToSpend) : '—'}</div>
+            {allowance && (
+              <p className="hero-allowance">
+                <CalendarDays size={18} aria-hidden="true" />
+                <span>
+                  About <strong>{inr(allowance.perDay)} a day</strong> for the next {allowance.days} day{allowance.days === 1 ? '' : 's'}
+                  {allowance.until === 'salary' ? ' until salary' : ' until month end'}
+                </span>
+              </p>
+            )}
             <p className="hero-sentence">{sentence}</p>
             <div className="hero-actions">
               {a.hasBalance ? (
@@ -113,7 +151,7 @@ export function HomePage({ data, analysis: a, credit, actions }) {
             <IconTile icon={Minus} label="Add expense" onClick={() => actions.newTx('debit')} primary />
             <IconTile icon={ArrowDownLeft} label="Add income" onClick={() => actions.newTx('credit')} />
             <IconTile icon={FileUp} label="Upload statements" onClick={actions.upload} />
-            <IconTile icon={Calculator} label="EMI calculator" onClick={() => actions.go('emis')} />
+            <IconTile icon={Calculator} label="EMI calculator" onClick={() => actions.go('calculator')} />
           </section>
         </div>
 
@@ -148,6 +186,36 @@ export function HomePage({ data, analysis: a, credit, actions }) {
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => actions.payEmi(next)}>
                   Paid it
                 </button>
+              </div>
+            )}
+          </section>
+
+          <section className="card" aria-labelledby="score-title">
+            <div className="card-head">
+              <h2 className="card-title" id="score-title">Credit score</h2>
+              <button type="button" className="link-btn" onClick={() => actions.go('credit')}>
+                Details <ChevronRight size={18} />
+              </button>
+            </div>
+            {latestScore ? (
+              <button type="button" className="row score-row" style={{ borderBottom: 'none' }} onClick={() => actions.go('credit')}>
+                <span className={`score-pill ${scoreBand(latestScore.score).tone}`}>{latestScore.score}</span>
+                <div className="row-main">
+                  <div className="row-title">{scoreBand(latestScore.score).label}</div>
+                  <div className="row-sub" style={{ whiteSpace: 'normal' }}>
+                    {latestScore.bureau} · {formatDay(latestScore.date)}
+                    {credit ? ` · FinCopilot estimate ${credit.score}` : ''}
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <div className="row" style={{ borderBottom: 'none' }}>
+                <span className="icon-circle"><Gauge size={22} strokeWidth={1.8} /></span>
+                <div className="row-main">
+                  <div className="row-title">Add your CIBIL score</div>
+                  <div className="row-sub" style={{ whiteSpace: 'normal' }}>Type it in or upload your free credit report.</div>
+                </div>
+                <button type="button" className="btn btn-soft btn-sm" onClick={actions.addScore}>Add</button>
               </div>
             )}
           </section>

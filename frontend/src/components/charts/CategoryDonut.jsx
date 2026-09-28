@@ -1,5 +1,5 @@
 import React from 'react';
-import { inr } from '../../lib/format';
+import { inr, wholePercents } from '../../lib/format';
 
 // Up to five biggest categories get their own colour; the rest are grouped as "Everything else".
 const MAX_SLICES = 5;
@@ -12,6 +12,7 @@ export function CategoryDonut({ items = [] }) {
   const top = items.slice(0, MAX_SLICES);
   const rest = items.slice(MAX_SLICES).reduce((sum, c) => sum + c.amount, 0);
   const slices = rest > 0 ? [...top, { category: 'Everything else', amount: rest }] : top;
+  const shares = wholePercents(slices.map((s) => s.amount));
 
   const r = 70;
   const c = 2 * Math.PI * r;
@@ -51,7 +52,7 @@ export function CategoryDonut({ items = [] }) {
             <span className={`donut-dot s${i}`} aria-hidden="true" />
             <span className="donut-name">{s.category}</span>
             <span className="donut-amt">{inr(s.amount)}</span>
-            <span className="donut-pct">{Math.round((s.amount / total) * 100)}%</span>
+            <span className="donut-pct">{shares[i]}%</span>
           </li>
         ))}
       </ul>

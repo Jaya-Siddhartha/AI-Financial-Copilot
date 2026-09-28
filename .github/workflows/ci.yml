@@ -23,11 +23,23 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Tests (engine, statements, tools, 3,000-situation simulation)
+      - name: Tests (engine, statements, store, credit report, 3,000-situation simulation)
         run: npm test
 
       - name: Production build
         run: npm run build
+
+      - name: End-to-end test in headless Chrome (every screen, every number)
+        run: node tests/e2e.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+      - name: Keep the end-to-end report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: frontend/tests/e2e-report.json
 
       - name: Security audit
         run: npm audit --audit-level=high
