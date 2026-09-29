@@ -135,6 +135,11 @@ export function CreditScoreSheet({ actions, onClose }) {
         </form>
       )}
       {error && <div style={{ marginTop: 12 }}><Alert tone={/no credit history/i.test(error) ? 'amber' : 'red'}>{error}</Alert></div>}
+      {error && mode === 'upload' && !facts && /No score/i.test(error) && (
+        <button type="button" className="btn btn-outline btn-block" style={{ marginTop: 10 }} onClick={() => { setMode('type'); setError(''); }}>
+          Type it in instead
+        </button>
+      )}
     </Sheet>
   );
 }

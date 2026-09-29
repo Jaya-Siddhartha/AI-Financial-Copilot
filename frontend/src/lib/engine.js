@@ -141,22 +141,27 @@ export const analyze = ({ profile, transactions = [], emis = [], now = new Date(
   const balance = bal ? Math.max(0, bal.balance) : null;
 
   // 1. Usual daily spending: everyday (not fixed, not one-off) debits over the days of data we
-  // have in the last 30 days.
+  // have in the last 30 days. Only complete past days count: what you spend today lowers your
+  // balance at once, but does not also raise the forecast of your habits (that would count the
+  // same money twice, so spending "safe to spend" could still leave you short).
   const windowStart = now.getTime() - WINDOW_DAYS * DAY_MS;
+  const todayStart = startOfDay(now).getTime();
   let everyday = 0;
-  let earliest = now.getTime();
+  let earliest = todayStart;
   const categoryMap = {};
   let windowDebits = 0;
   for (const t of txs) {
     const time = new Date(t.date).getTime();
     if (time < windowStart || time > now.getTime() || t.type !== 'debit') continue;
-    earliest = Math.min(earliest, time);
     const amt = Number(t.amount);
     windowDebits += amt;
     if (!t.hypothetical) categoryMap[t.category] = (categoryMap[t.category] || 0) + amt;
-    if (!isFixed(t.category) && amt <= bigPayment) everyday += amt;
+    if (time < todayStart) {
+      earliest = Math.min(earliest, time);
+      if (!isFixed(t.category) && amt <= bigPayment) everyday += amt;
+    }
   }
-  const daysOfData = Math.min(WINDOW_DAYS, Math.max(7, Math.ceil((now.getTime() - earliest) / DAY_MS)));
+  const daysOfData = Math.min(WINDOW_DAYS, Math.max(7, Math.ceil((todayStart - earliest) / DAY_MS)));
   const dailySpend = Math.round(everyday / daysOfData);
   const lowData = txs.filter((t) => !t.hypothetical).length < 5;
 

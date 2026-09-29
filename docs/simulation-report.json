@@ -1,77 +1,81 @@
 {
-  "date": "2026-09-28T20:09:02.475Z",
+  "date": "2026-09-29T00:42:21.092Z",
   "seed": 777,
   "runs": 20000,
-  "totalMs": 88289,
-  "perSituationMs": 4.41,
-  "fiveThousandTxMs": 11,
+  "totalMs": 106181,
+  "perSituationMs": 5.31,
+  "fiveThousandTxMs": 10,
   "biggestHistory": 200,
   "statements": 4000,
-  "totalChecks": 719526,
+  "totalChecks": 777428,
   "failed": 0,
   "checks": {
     "balance = bank figure + in − out since then": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "balance shown is never negative": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "safe to spend = balance − EMIs due − usual spending − buffer": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "safe to spend is never more than the balance": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "buffer is exactly the user choice": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "status matches the numbers": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "turning the buffer off never lowers safe to spend": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "\"Can I afford it?\" = the dashboard after spending": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "spending money never raises safe to spend": {
-      "pass": 18407,
+      "pass": 18403,
+      "fail": 0
+    },
+    "spending ₹X today lowers safe to spend by exactly ₹X (no double counting)": {
+      "pass": 18133,
       "fail": 0
     },
     "7-day projection has 8 days and never goes up": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "EMI countdown is between 0 and 31 days": {
-      "pass": 40178,
+      "pass": 39758,
       "fail": 0
     },
     "EMI has a valid status": {
-      "pass": 40178,
+      "pass": 39758,
       "fail": 0
     },
     "after paying, an EMI is never still late": {
-      "pass": 38862,
+      "pass": 38441,
       "fail": 0
     },
     "autopay catch-up: missed dates are in order, never in the future, within months left": {
-      "pass": 23316,
+      "pass": 23072,
       "fail": 0
     },
     "autopay catch-up: after recording them the EMI is not late": {
-      "pass": 23316,
+      "pass": 23072,
       "fail": 0
     },
     "after paying an upcoming EMI it cannot be paid again this cycle": {
-      "pass": 16175,
+      "pass": 16057,
       "fail": 0
     },
     "credit health is between 300 and 900": {
@@ -103,15 +107,15 @@
       "fail": 0
     },
     "daily allowance × days never exceeds safe to spend": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "daily allowance uses all of safe to spend (rounded down)": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "allowance lasts 1 to 31 days": {
-      "pass": 18407,
+      "pass": 18403,
       "fail": 0
     },
     "goal progress is 0 to 100%": {
@@ -135,7 +139,15 @@
       "fail": 0
     },
     "money questions go to the exact calculator": {
-      "pass": 17753,
+      "pass": 17757,
+      "fail": 0
+    },
+    "\"Can I afford it?\" never says yes to more than safe to spend": {
+      "pass": 18403,
+      "fail": 0
+    },
+    "\"Can I afford it?\" says yes to anything within safe to spend when nothing is late": {
+      "pass": 18403,
       "fail": 0
     },
     "AI fact sheet has no broken values": {
@@ -143,19 +155,23 @@
       "fail": 0
     },
     "no EMI waiting → nothing kept for everyday spending": {
-      "pass": 3676,
+      "pass": 3839,
+      "fail": 0
+    },
+    "spending up to safe to spend never leaves you short for an EMI": {
+      "pass": 4717,
       "fail": 0
     },
     "no bank figure → no balance, no safe-to-spend": {
-      "pass": 1593,
+      "pass": 1597,
       "fail": 0
     },
     "no balance → no daily allowance": {
-      "pass": 1593,
+      "pass": 1597,
       "fail": 0
     },
     "assistant quotes the real CIBIL score when there is one": {
-      "pass": 1094,
+      "pass": 1084,
       "fail": 0
     },
     "5,000 transactions are analysed in under 150 ms": {

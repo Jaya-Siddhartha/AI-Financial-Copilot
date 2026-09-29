@@ -3,10 +3,11 @@
 ## Update for 2.2 (29 September 2026)
 
 **Scope:** every screen, the money engine, data tally across screens, the credit score feature, storage and backup, offline support, accessibility and speed.
-**Method:** 46 unit tests; a seeded simulation of 20,000 situations and 4,000 statements (719,526 checks); a new end-to-end robot in headless Chrome (114 checks on the built app, at 4 screen widths); hands-on review of screenshots; `npm audit`.
+**Method:** 47 unit tests; a seeded simulation of 20,000 situations and 4,000 statements (777,428 checks); a new end-to-end robot in headless Chrome (116 checks on the built app, at 4 screen widths); the offline AI re-run on real hardware with 13 questions; hands-on review of screenshots; `npm audit`.
 
 | Area | Verdict |
 |---|---|
+| Safe to spend | **Now self-consistent.** Spending ₹X lowers it by exactly ₹X; spending up to it never leaves you short (a double-counting flaw was fixed in 2.2.1). |
 | Money maths and data tally | **Sound.** Home, Insights and History now agree with each other and with the saved data in every test. Two tally bugs fixed (History totals with more than 200 transactions; percentages not adding to 100). |
 | CIBIL score | **Honest and legal.** No API exists without a bureau partnership, so the app reads the user's own free report PDF on the device, or takes a typed score. Validated 300–900, bureau list, no future dates. |
 | Autopay | **Catches up.** Every missed month is recorded after a long break (was only the latest). |
@@ -16,7 +17,7 @@
 | Speed | 5,000 transactions: Home 0.24 s, History 0.36 s, engine 0.011 s. |
 | Dependencies | 0 high-severity vulnerabilities (`npm audit --audit-level=high`, also in CI). |
 
-**Found and fixed in 2.2: 9 bugs** (see [TEST_REPORT.md §4](TEST_REPORT.md#4-bugs-the-testing-found-all-fixed)). **Open items:** Account Aggregator and automatic credit score need a registered business; scanned PDFs need OCR; the large WebLLM chunk (about 6 MB) loads only when the offline AI is turned on.
+**Found and fixed in 2.2 and 2.2.1: 15 bugs** (see [TEST_REPORT.md §4](TEST_REPORT.md#4-bugs-the-testing-found-all-fixed)). **Open items:** Account Aggregator and automatic credit score need a registered business; scanned PDFs need OCR; the large WebLLM chunk (about 6 MB) loads only when the offline AI is turned on.
 
 The 2.0 audit below is kept for reference. Its sign-in and Supabase security sections describe version 2.0; login was removed in 2.1.
 

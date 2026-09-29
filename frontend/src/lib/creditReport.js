@@ -41,8 +41,9 @@ const detectScore = (text) => {
   let m;
   while ((m = re.exec(text))) {
     const after = text.slice(m.index + 5, m.index + 90);
-    // Skip model version numbers like "3.0" or "2.2" and dates, take the first plausible score.
-    const nums = [...after.matchAll(/(?<![\d./-])(\d{3})(?![\d./-])/g)].map((x) => Number(x[1]));
+    // Skip model version numbers like "3.0" or "2.2", ranges like "300-900" and dates; accept
+    // "764/900" and zero-padded "00764". Take the first plausible score.
+    const nums = [...after.matchAll(/(?<![\d./-])0{0,2}(\d{3})(?![\d.-])/g)].map((x) => Number(x[1]));
     const score = nums.find((n) => n >= 300 && n <= 900);
     if (score) return score;
   }
@@ -66,7 +67,8 @@ const countAfter = (text, re) => {
 
 export const parseCreditReport = (rawText) => {
   const text = String(rawText || '').replace(/\s+/g, ' ');
-  const noHistory = /\b(NH|no credit history|-1)\b/.test(text) && !detectScore(text);
+  // CIBIL shows "NH" or "-1" when there is not enough credit history for a score.
+  const noHistory = /(\bNH\b|no credit history|(?:^|[\s:])-1\b)/i.test(text) && !detectScore(text);
   const score = detectScore(text);
   const date = detectDate(text);
   return {

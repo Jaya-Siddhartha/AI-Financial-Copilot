@@ -128,6 +128,9 @@ test(`simulation: ${RUNS} random money situations follow the rules`, () => {
       const after = analyze({ ...input, transactions: [...input.transactions, { date: input.now.toISOString(), amount, type: 'debit', category: 'Other', description: 'x' }] });
       check('"Can I afford it?" = the dashboard after spending', predicted.safeToSpend === after.safeToSpend && predicted.status === after.status, { ...ctx, amount });
       check('spending money never raises safe to spend', after.safeToSpend <= a.safeToSpend, { ...ctx, amount });
+      // (Skipped when the bank figure was confirmed at this exact moment: the spend is then part of it.)
+      if (new Date(input.profile.balanceDate).getTime() < input.now.getTime()) check('spending ₹X today lowers safe to spend by exactly ₹X (no double counting)', Math.abs(after.safeToSpend - Math.max(0, a.safeToSpend - amount)) <= 0.011, { ...ctx, amount, before: a.safeToSpend, after: after.safeToSpend });
+      if (amount <= a.safeToSpend) check('spending up to safe to spend never leaves you short for an EMI', after.status !== 'HIGH RISK', { ...ctx, amount, safe: a.safeToSpend });
 
       // Projection
       check('7-day projection has 8 days and never goes up', a.projection.length === 8 && a.projection.every((d, i) => i === 0 || d.balance <= a.projection[i - 1].balance), ctx);
@@ -203,6 +206,12 @@ test(`simulation: ${RUNS} random money situations follow the rules`, () => {
     check('assistant always answers in words', typeof reply === 'string' && reply.length > 10 && !/undefined|NaN|Infinity|\[object/.test(reply), { ...ctx, q, reply });
     if (q !== 'how can i save more') check('money questions go to the exact calculator', DECISION_INTENTS.includes(intentOf(q)), { ...ctx, q });
     if (q === 'what is my cibil score' && creditScores.length) check('assistant quotes the real CIBIL score when there is one', reply.includes(String(creditScores[0].score)), { ...ctx, reply });
+    if (a.hasBalance) {
+      const try1 = int(1, 90000);
+      const said = answer(`can i afford ${try1}`, aiCtx);
+      check('"Can I afford it?" never says yes to more than safe to spend', try1 <= a.safeToSpend || !said.startsWith('Yes'), { ...ctx, try1, safe: a.safeToSpend, said });
+      check('"Can I afford it?" says yes to anything within safe to spend when nothing is late', try1 > a.safeToSpend || a.overdue.length > 0 || said.startsWith('Yes'), { ...ctx, try1, safe: a.safeToSpend, said });
+    }
     check('AI fact sheet has no broken values', !/undefined|NaN|Infinity|\[object/.test(factSheet(aiCtx)), ctx);
   }
   const ms = performance.now() - started;

@@ -112,6 +112,8 @@ export function InsightsPage({ data, analysis: a, credit, engineInput, actions }
                     <Alert>That is more than your balance of {inr(a.balance)}.</Alert>
                   ) : after.status === 'HIGH RISK' ? (
                     <Alert>Not a good idea right now. You could be {inr(after.shortBy)} short for your next EMI.</Alert>
+                  ) : amount > a.safeToSpend ? (
+                    <Alert tone="amber">Not a good idea right now: that is {inr(amount - a.safeToSpend)} more than you can safely spend, so it would use money kept for {a.totalDue ? 'EMIs, ' : ''}everyday needs or your safety cushion.</Alert>
                   ) : after.status === 'CAUTION' ? (
                     <Alert tone="amber">Possible, but you would have very little spare before your next EMI.</Alert>
                   ) : (

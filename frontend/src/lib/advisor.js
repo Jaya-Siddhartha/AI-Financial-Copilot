@@ -10,6 +10,8 @@ import { goalPlan, GOAL_STATUS, monthlySurplus } from './goals.js';
 const dayText = (ymd) => new Date(`${ymd}T12:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const perDayText = (a) => (a.allowance && a.safeToSpend > 0 ? ` That is about ${inr(a.allowance.perDay)} a day for the next ${a.allowance.days} day${a.allowance.days === 1 ? '' : 's'} (until ${a.allowance.until}).` : '');
 
+const listJoin = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}` : items[0] || '');
+
 const when = (e) => (e.status === 'overdue' ? `${e.daysOverdue} day${e.daysOverdue === 1 ? '' : 's'} late` : e.daysRemaining === 0 ? 'due today' : e.daysRemaining === 1 ? 'due tomorrow' : `due in ${e.daysRemaining} days`);
 
 // Ranked list of things worth doing now. tone: red (act now), amber (watch), green (good news).
@@ -107,14 +109,17 @@ export const DECISION_INTENTS = ['afford', 'loan', 'safe', 'emi', 'where', 'scor
 export const intentOf = (question) => {
   const q = String(question).toLowerCase();
   const amount = amountIn(q);
-  if (/\b(loan|borrow|credit card|emi on)\b/.test(q) && amount && /(take|get|should|borrow|apply)/.test(q)) return 'loan';
+  if (/\b(loan|borrow|credit card|emi on|on (an )?emis?|in emis?|instal+ments?|no[- ]cost emi)\b/.test(q) && amount && /(take|get|should|borrow|apply|buy|purchase)/.test(q)) return 'loan';
   if (/afford|can i (buy|spend|pay)|should i (buy|spend)|good idea/.test(q) && amount) return 'afford';
   if (/(check|look at|watch).*(every ?day|daily)|one thing|where do i start/.test(q)) return 'daily';
   if (/safe|how much.*(spend|left)|spend.*today|budget/.test(q)) return 'safe';
   if (/emi|loan|due/.test(q)) return 'emi';
   if (/where|most|biggest|spent on|category|categories/.test(q)) return 'where';
+  // "Why does my credit score matter?" is a question to explain, not a number to look up.
+  if (/score|cibil|credit/.test(q) && /\b(why|explain|meaning|mean|matters?|important|how (does|do|is) .*(work|calculated|made))\b/.test(q)) return 'learnCredit';
   if (/score|cibil|credit|experian|equifax/.test(q)) return 'score';
-  if (/\bgoals?\b|saving (up )?for/.test(q)) return 'goal';
+  // "How are my goals going?" is a number question; "tips to reach my goal" is for the AI.
+  if (/\bgoals?\b|saving (up )?for/.test(q) && !/\b(tips?|ideas?|ways?|advice|suggest)/.test(q)) return 'goal';
   if (/save|saving|cut|reduce/.test(q)) return 'save';
   if (/subscription|repeat|recurring/.test(q)) return 'recurring';
   return 'general';
@@ -128,7 +133,9 @@ export const answer = (question, ctx) => {
   const intent = intentOf(q);
 
   if (intent === 'loan') {
-    const months = /(\d+)\s*(year|yr)/.test(q) ? Number(q.match(/(\d+)\s*(year|yr)/)[1]) * 12 : 24;
+    const years = q.match(/(\d+)\s*(years?|yrs?)\b/);
+    const monthsSaid = q.match(/(\d+)\s*months?\b/);
+    const months = years ? Number(years[1]) * 12 : monthsSaid ? Number(monthsSaid[1]) : /\bloan\b/.test(q) ? 24 : 12;
     const loan = loanSummary(amount, 14, months);
     const current = a.emis.filter((e) => e.status !== 'closed').reduce((t, e) => t + Number(e.amount), 0);
     const burden = emiBurden(current + loan.emi, profile.monthlyIncome);
@@ -148,13 +155,23 @@ export const answer = (question, ctx) => {
   if (intent === 'afford') {
     const after = whatIf(ctx.engineInput, amount);
     if (!a.hasBalance) return 'First add your bank balance (Home → Update balance), then I can check this.';
+    if (amount > a.balance) return `No. ${inr(amount)} is more than your balance of ${inr(a.balance)}.`;
     if (after.status === 'HIGH RISK') return `Not right now. Spending ${inr(amount)} could leave you ${inr(after.shortBy)} short for your ${a.nextEmi?.name || 'next'} EMI. Wait until it is paid.`;
+    if (amount > a.safeToSpend) {
+      const kept = [a.totalDue ? 'EMIs' : null, a.expectedSpend ? 'everyday needs' : null, a.buffer ? 'your safety cushion' : null].filter(Boolean);
+      return `Not a good idea right now. ${inr(amount)} is ${inr(amount - a.safeToSpend)} more than you can safely spend (${inr(a.safeToSpend)}), so it would use money kept for ${listJoin(kept) || 'other things'}.`;
+    }
     if (after.status === 'CAUTION') return `You can, but it is tight: your safe-to-spend would drop to ${inr(after.safeToSpend)} and your cushion gets thin.`;
     return `Yes. After spending ${inr(amount)}, you would still have ${inr(after.safeToSpend)} safe to spend and your EMIs stay covered.`;
   }
   if (intent === 'safe') {
     if (!a.hasBalance) return 'Add your bank balance first (Home → Update balance), and I will tell you how much is safe to spend.';
-    return `You can safely spend ${inr(a.safeToSpend)}. That keeps ${inr(a.totalDue)} for EMIs, about ${inr(a.expectedSpend)} for everyday needs until the next EMI${a.buffer ? ` and your ${inr(a.buffer)} cushion` : ''}.${perDayText(a)}`;
+    const kept = [
+      a.totalDue ? `${inr(a.totalDue)} for EMIs due in the next month` : null,
+      a.expectedSpend ? `about ${inr(a.expectedSpend)} for everyday needs until the next EMI` : null,
+      a.buffer ? `your ${inr(a.buffer)} cushion` : null,
+    ].filter(Boolean);
+    return `You can safely spend ${inr(a.safeToSpend)}.${kept.length ? ` That keeps ${listJoin(kept)} aside.` : ''}${a.nextEmi ? '' : ' No EMIs are waiting right now.'}${perDayText(a)}`;
   }
   if (intent === 'emi') {
     if (!a.emis.length) return 'You have no EMIs added. Add them in the EMIs tab so I can protect them.';
@@ -187,6 +204,10 @@ export const answer = (question, ctx) => {
     }
     const est = ctx.credit ? `Your estimated credit health is ${ctx.credit.score} out of 900 (${ctx.credit.label}), worked out from your data here. ` : '';
     return `${est}I cannot see your CIBIL score: bureaus only share it with lenders and licensed partners. Add it on the Credit score page by typing it in or uploading your free credit report PDF (each bureau gives one free report a year).${tip}`;
+  }
+  if (intent === 'learnCredit') {
+    const real = ctx.creditScores?.[0];
+    return `A credit score (300 to 900) tells banks how reliably you repay loans and cards. Above 750, loans are usually approved quickly and at lower interest; below 650, many lenders say no or charge more. What moves it most: paying every EMI and card bill on time, keeping credit card use low, not applying for many loans at once, and a long, steady record.${real ? ` Your latest ${real.bureau} score is ${real.score} (${scoreBand(real.score).label}).` : ' You can add yours on the Credit score page.'}`;
   }
   if (intent === 'goal') {
     const goals = ctx.goals || [];

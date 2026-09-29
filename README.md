@@ -82,7 +82,7 @@ safe to spend = your balance
 ```
 
 - **Your balance** = the amount you last confirmed with your bank + money in − money out since then.
-- **Usual daily spending** = your everyday spending over the last 30 days (or fewer, if you have less history), divided by those days. Rent, EMIs, savings and **one-off payments over max(₹5,000, 20% of income)** are left out, so one big purchase does not make every day look expensive.
+- **Usual daily spending** = your everyday spending over the last 30 complete days (or fewer, if you have less history), divided by those days. What you spend today lowers your balance at once but is not also added to the forecast, so **spending ₹X lowers safe to spend by exactly ₹X**, and spending up to the safe amount never leaves you short for an EMI. Rent, EMIs, savings and **one-off payments over max(₹5,000, 20% of income)** are left out, so one big purchase does not make every day look expensive.
 - **When no EMI is waiting**, nothing is kept aside for everyday spending: safe to spend = balance − buffer.
 - **Status:** *Safe* (all covered), *Be careful* (covered but the buffer is not, or an EMI is late), *At risk* (you could be short for an EMI; it shows by how much).
 - **"Can I afford it?"** runs the exact same calculation with the purchase added, so it always matches what you will see after spending.
@@ -186,12 +186,12 @@ Sample statements for trying the upload are in [`frontend/tests/fixtures`](front
 
 ```bash
 cd frontend
-npm test                                  # 46 tests, including a 3,000-situation simulation (~15 s)
+npm test                                  # 47 tests, including a 3,000-situation simulation (~15 s)
 SIM_RUNS=20000 SIM_SEED=777 npm test      # the full simulation from the test report (~95 s)
 npm run test:e2e                          # builds, then a robot uses every screen in headless Chrome (~25 s)
 ```
 
-Latest full run: **719,526 simulation checks and 114 end-to-end checks, 0 failures.** See [TEST_REPORT.md](TEST_REPORT.md). GitHub Actions runs the tests, the build, the end-to-end robot and a security audit on every push.
+Latest full run: **777,428 simulation checks and 116 end-to-end checks, 0 failures.** See [TEST_REPORT.md](TEST_REPORT.md). GitHub Actions runs the tests, the build, the end-to-end robot and a security audit on every push.
 
 ## Deployment
 

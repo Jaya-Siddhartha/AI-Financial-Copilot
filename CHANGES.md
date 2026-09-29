@@ -1,5 +1,18 @@
 # What changed in FinCopilot
 
+## 2.2.1: Safer "safe to spend", offline AI re-tested, better credit report reading (29 September 2026)
+
+- **Fixed: spending less than "safe to spend" could still show "At risk".** A purchase lowered the balance *and* raised the forecast of usual daily spending, so the same money was counted twice (for example: safe to spend ₹55,780, spend ₹32,903, told "₹8,026 short for your EMI"). Usual spending now comes from complete past days only, so spending ₹X lowers safe to spend by exactly ₹X.
+- **Fixed: "Can I afford it?" said "Yes" to amounts above safe to spend** when no EMI was waiting (it only checked EMIs). It now says no when the amount is more than your balance, and "not a good idea" when it is more than safe to spend, both in the assistant and in Insights.
+- **Assistant, found by re-testing the offline AI with real questions:**
+  - "Should I buy a phone for 40000 on EMI?" now gets the loan answer (monthly EMI, interest, share of income), not the purchase check.
+  - "Explain why my credit score matters" goes to the AI (or a built-in explanation) instead of the score lookup.
+  - "Tips to reach a savings goal" goes to the AI instead of the goal numbers.
+  - "How much can I spend?" no longer says "keeps ₹0 for EMIs, about ₹0 for everyday needs".
+- **Credit report reading:** now also reads "764/900", zero-padded scores such as "00787" in CIBIL's score table, and "-1" (no credit history). If a report still cannot be read, a **Type it in instead** button appears.
+- Tests: 47 unit tests; simulation 777,428 checks (47 rules, 0 failures), including "spending ₹X lowers safe to spend by exactly ₹X" and "Can I afford never says yes above safe to spend"; test robot 116 checks, 0 failures.
+
+
 ## 2.2: Your real CIBIL score, daily allowance, goals, and a full test robot (29 September 2026)
 
 ### New

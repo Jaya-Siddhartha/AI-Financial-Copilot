@@ -110,3 +110,15 @@ test('autopay after a long break: every missed month, oldest first, within the m
   assert.deepEqual(missedDueDates({ ...base, remainingMonths: 0 }, now), []);
   assert.deepEqual(missedDueDates({ ...base, dueDay: 29, createdAt: new Date(2026, 8, 1).toISOString() }, now), ['2026-09-29']);
 });
+
+test('credit report: real-world layouts ("764/900", "00787", score tables, "-1") and no false scores', () => {
+  assert.equal(parseCreditReport('CIBIL Score 764/900 Report Date: 12/09/2026').score, 764);
+  const table = parseCreditReport('TransUnion CIBIL CONSUMER CIR CIBIL TRANSUNION SCORE(S): SCORE NAME SCORE SCORING FACTORS CIBILTUSC3 00787 Date: 03-09-2026');
+  assert.deepEqual([table.score, table.bureau, table.reportDate], [787, 'CIBIL', '2026-09-03']);
+  assert.equal(parseCreditReport('Experian Credit Report Score range 300-900 Your Experian Credit Score 812').score, 812);
+  assert.equal(parseCreditReport('CRIF High Mark CREDIT SCORE(S): NAME SCORE RANGE PERFORM CONSUMER 2.2 300-900 751').score, 751);
+  const nh = parseCreditReport('CIBIL TRANSUNION SCORE(S): CIBILTUSC3 -1');
+  assert.deepEqual([nh.score, nh.noHistory], [null, true]);
+  assert.equal(parseCreditReport('CIBIL Score Report generated on 12/09/2026 at 10:45').score, null);
+  assert.equal(parseCreditReport('Score details Mobile 9876543210 PIN 560001').score, null);
+});

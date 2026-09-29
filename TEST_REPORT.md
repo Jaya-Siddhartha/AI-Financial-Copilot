@@ -1,17 +1,18 @@
 # FinCopilot Test Report
 
 **Date:** 29 September 2026
-**Version tested:** FinCopilot 2.2 (on-device data, statement upload, real CIBIL score from your credit report, daily allowance, savings goals, EMI tools, offline AI and offline app, six themes)
+**Version tested:** FinCopilot 2.2.1 (on-device data, statement upload, real CIBIL score from your credit report, daily allowance, savings goals, EMI tools, offline AI and offline app, six themes)
 **Written for:** anyone, no technical background needed
 
 ---
 
 ## The short version
 
-- **719,526 automatic checks, 0 failures.** A computer simulation played **20,000 random money situations** and **4,000 random bank and UPI statements**, and checked after each one that every number followed the rules and **added up** (the "data tally").
-- **A test robot used the real app 114 ways, 0 failures.** It opens the built app in a real Chrome browser and taps, types and uploads like a person: setup, expenses, EMIs, 3 statements, the credit report PDF, goals, the assistant, all 6 themes, 4 screen sizes, backup, sample data, autopay after 100 days away, 5,000 transactions and no internet.
-- **46 regular tests, all passing.**
-- **The new tests found 9 real bugs, and all 9 are fixed** (listed in §4). The most important: History month totals were wrong for anyone with more than 200 transactions.
+- **777,428 automatic checks, 0 failures.** A computer simulation played **20,000 random money situations** and **4,000 random bank and UPI statements**, and checked after each one that every number followed the rules and **added up** (the "data tally").
+- **A test robot used the real app 116 ways, 0 failures.** It opens the built app in a real Chrome browser and taps, types and uploads like a person: setup, expenses, EMIs, 3 statements, the credit report PDF, goals, the assistant, all 6 themes, 4 screen sizes, backup, sample data, autopay after 100 days away, 5,000 transactions and no internet.
+- **47 regular tests, all passing.**
+- **The offline AI was re-tested on this computer's graphics card** with 13 real questions (§6). This found 4 more problems, all fixed.
+- **The new tests found 15 real bugs, and all 15 are fixed** (listed in §4). The most important: History month totals were wrong for anyone with more than 200 transactions.
 - **Speed:** with 5,000 transactions, Home opens in about **0.25 seconds**, History in **0.35 seconds**, and search answers in **0.04 seconds**. The money engine works out everything in **0.011 seconds**.
 - **Your CIBIL score:** no app can fetch it for free without a paid bureau partnership and your PAN. FinCopilot reads the **free credit report PDF** you download yourself (§5).
 
@@ -50,6 +51,9 @@ A simulation is like asking thousands of pretend users to use the app in random 
 | The buffer is exactly what the user chose; turning it off never lowers safe to spend | 18,407 | 0 |
 | The status (Safe / Be careful / At risk) matches the numbers | 18,407 | 0 |
 | "Can I afford it?" = what the screen shows after really spending | 18,407 | 0 |
+| **New:** spending ₹X today lowers safe to spend by exactly ₹X (no double counting) | 18,133 | 0 |
+| **New:** spending up to safe to spend never leaves you short for an EMI | 4,717 | 0 |
+| **New:** "Can I afford it?" never says yes above safe to spend, and always says yes within it (when nothing is late) | 18,403 | 0 |
 | **New:** per-day allowance × days never goes over safe to spend, and uses all of it | 18,407 | 0 |
 | **New (tally):** categories add up to the total spent in 30 days | 20,000 | 0 |
 | **New (tally):** category percentages add up to exactly 100% | 20,000 | 0 |
@@ -64,13 +68,13 @@ A simulation is like asking thousands of pretend users to use the app in random 
 | Statements: every transaction found; every amount, direction and date exact | 4,000 | 0 |
 | 5,000 transactions worked out in under 0.15 seconds (took 0.011) | 1 | 0 |
 
-**Total: 719,526 checks across 43 rules, 0 failures.** Full numbers: [docs/simulation-report.json](docs/simulation-report.json).
+**Total: 777,428 checks across 47 rules, 0 failures.** Full numbers: [docs/simulation-report.json](docs/simulation-report.json).
 
 ---
 
 ## 3. The test robot (real browser)
 
-`npm run test:e2e` builds the app, starts it, and drives a real headless Chrome through it. It reads every figure off the screen and compares it with the saved data. **114 checks, 0 failures.** It also runs on GitHub on every push.
+`npm run test:e2e` builds the app, starts it, and drives a real headless Chrome through it. It reads every figure off the screen and compares it with the saved data. **116 checks, 0 failures.** It also runs on GitHub on every push.
 
 | Step | What the robot did and checked |
 |---|---|
@@ -80,7 +84,7 @@ A simulation is like asking thousands of pretend users to use the app in random 
 | EMIs | Bike loan ₹3,000 due in 5 days → safe to spend drops by exactly ₹3,000. "Paid it" → balance −₹3,000, EMI not kept aside again, payment linked in History. |
 | Upload | Locked PhonePe PDF (with password), bank CSV and Google Pay Excel at once: **14 + 25 + 6** transactions, **5 duplicates** unticked, **40 added**, review totals equal the ticked rows. |
 | History tally | Every month's money-out and money-in total equals the saved transactions; search shows only matches. |
-| Insights tally | Balance − EMIs − everyday − buffer = safe to spend, and equals Home. Donut percentages add up to 100%, amounts add up to the 30-day total. "This month: spent" matches. |
+| Insights tally | Balance − EMIs − everyday − buffer = safe to spend, and equals Home. Donut percentages add up to 100%, amounts add up to the 30-day total. "This month: spent" matches. "Can I afford it?" says no to ₹500 above safe to spend and yes just below it. |
 | Buffer | ₹2,000 → ₹5,000 lowers safe to spend by exactly ₹3,000; off adds ₹2,000; on takes it back. |
 | Calculator | Home's EMI calculator button opens the calculator. ₹5,00,000 at 10.5% for 3 years = **₹16,251**. "Pay extra once" matches the formula; ₹0 extra saves ₹0. |
 | Credit score | 950 refused; 745 typed → gauge "745 · Good". Made-up locked CIBIL report: wrong password gives a clear message; right password reads **752, CIBIL, 14 Sept 2026, 3 active, 0 overdue, 1 enquiry**. History shows "Down 7 points". Home and the assistant show the real score. 4 free-report links. |
@@ -114,6 +118,12 @@ Full list: `frontend/tests/e2e-report.json` (created when you run it).
 | 7 | **The Home "EMI calculator" button opened the EMI list**, not the calculator. | Hands-on check | Opens the calculator directly |
 | 8 | **Autopay after a long break recorded only the latest missed month** (3 months away → 1 payment), so months left and History were wrong. | Robot | Every missed month is recorded, oldest first |
 | 9 | **A blank "Months left" made a new loan show as already closed.** | Reading the code while fixing #8 | The field is required; a missing value means "still running" |
+| 10 | **Spending less than "safe to spend" could still show "At risk"**: a purchase also raised the forecast of daily spending, counting the same money twice (safe ₹55,780, spend ₹32,903 → "₹8,026 short"). | New simulation rule | The forecast uses complete past days only; spending ₹X lowers safe to spend by exactly ₹X |
+| 11 | **"Can I afford ₹40,000?" said "Yes… you would still have ₹0 safe to spend"** when no EMI was waiting. | Offline AI re-test | Says no above your balance, "not a good idea" above safe to spend (assistant and Insights) |
+| 12 | **"Buy a phone for 40000 on EMI"** got the purchase answer instead of the loan answer. | Offline AI re-test | "On EMI", "instalments" and "no-cost EMI" count as a loan |
+| 13 | **"Explain why my credit score matters"** got the score lookup instead of an explanation. | Offline AI re-test | Goes to the AI, with a built-in explanation as fallback |
+| 14 | **"Tips to reach a savings goal"** got the goal numbers instead of tips. | Offline AI re-test | Goes to the AI |
+| 15 | **Credit reports with "764/900", "00787" or "-1"** were not read. | New real-world layout tests | All three read; "Type it in instead" button if a report still is not read |
 
 Also fixed: "1 days late", header buttons breaking onto two lines on small phones, score history labels ("Sept 26" twice), the buffer switch's name for screen readers, same-day credit scores swapping order, and autopay catching up only one month after a long break.
 
@@ -136,9 +146,28 @@ The test report file is a **made-up person** ("Asha Test Kumar"), clearly marked
 
 ---
 
-## 6. The offline AI (tested in 2.0, unchanged)
+## 6. The offline AI (re-tested for 2.2.1)
 
-Both models were downloaded and run on this computer's graphics card (NVIDIA, WebGPU).
+Both models are on this computer and ran on its graphics card (WebGPU). The Smart model started in **5 seconds** from the saved copy (no download).
+
+**Re-test with 13 real questions (29 September 2026):**
+
+| Question | Answered by | Result |
+|---|---|---|
+| What is my CIBIL score? | Exact calculator | Explains that no score is added yet and how to add it free ✔ |
+| How are my goals going? | Exact calculator | Correct ("no goals yet", how to add one) ✔ |
+| How much can I spend per day until salary? | Exact calculator | ₹26,300, about ₹13,150 a day for 2 days ✔ (wording fixed) |
+| Can I afford 30000? | Exact calculator | "No. ₹30,000 is more than your balance of ₹28,800." ✔ (was wrong, fixed) |
+| Should I buy a phone for 40000 on EMI? | Exact calculator | ₹3,591 a month for 12 months, ₹3,098 interest, 8% of income, "saving up first is usually better" ✔ (was wrong, fixed) |
+| Explain why my credit score matters in simple words | Offline AI | Clear, correct explanation (750+ good, below 650 hard, pay EMIs on time) ✔ (was routed wrongly, fixed) |
+| Give me 3 tips to spend less on food | Offline AI | 3 sensible tips ✔ |
+| Give me 3 tips to reach a savings goal faster | Offline AI | 3 sensible tips ✔ (was routed wrongly, fixed) |
+| How can I save more this month? | Offline AI | Sensible advice ✔ |
+| 4 more built-in chips | Exact calculator | Correct ✔ |
+
+Money answers come back in about 0.3 to 1 second; AI answers stream in 2 to 5 seconds.
+
+**Earlier (2.0) measurements:**
 
 | | Lite (about 400 MB) | Smart (about 1 GB, recommended) |
 |---|---|---|
@@ -151,10 +180,11 @@ Money decisions (afford, loans, EMIs, safe to spend, credit score, goals) are al
 
 ## 7. What was not tested, and why
 
-- **Fetching a real CIBIL score automatically.** Not possible without a licensed bureau partnership (§5). A real report was not used; the reader was tested with made-up reports in each bureau's layout. If your own report is not read correctly, you can type the score, and the layout can be added.
+- **Fetching a real CIBIL score automatically.** Not possible without a licensed bureau partnership (§5).
+- **A real person's credit report.** Getting one needs that person's PAN and a login on the bureau website, which a tester must not do on someone's behalf. The reader was instead tested with a made-up locked PDF and 13 text layouts based on the real CIBIL, Experian, Equifax and CRIF formats (score tables, "764/900", "00787", version numbers, score ranges, "NH" and "-1"), and it never mistakes dates or phone numbers for a score. **Try your own report**: if it is not read, tap "Type it in instead", and share the layout (without personal details) so it can be added.
 - **Your own real statements.** The reader handles the common layouts and 4,000 random ones. If a file is not read correctly, the preview lets you untick or fix rows.
 - **Scanned (photographed) PDFs.** They contain pictures, not text, so they cannot be read. The app says so.
-- **The offline AI on phones.** It needs WebGPU, which only some newer phones have.
+- **The offline AI on phones.** It needs WebGPU, which only some newer phones have. Everywhere else the built-in assistant answers.
 
 ---
 
@@ -163,7 +193,7 @@ Money decisions (afford, loans, EMIs, safe to spend, credit score, goals) are al
 ```bash
 cd frontend
 npm install
-npm test                                  # 46 tests, including a 3,000-situation simulation (about 15 seconds)
+npm test                                  # 47 tests, including a 3,000-situation simulation (about 15 seconds)
 SIM_RUNS=20000 SIM_SEED=777 npm test      # the full simulation in this report (about 95 seconds)
 npm run test:e2e                          # the test robot in headless Chrome or Edge (about 25 seconds)
 ```

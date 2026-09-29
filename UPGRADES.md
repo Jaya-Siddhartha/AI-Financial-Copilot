@@ -34,7 +34,7 @@ Those apps are built to **move money**. FinCopilot is built to **stop you spendi
 | Prepayment calculator | Interest and months saved by paying extra once |
 | Sample data | One tap to try the app with a made-up person |
 | Offline app | Service worker; the app opens with no internet |
-| Test robot | 114 end-to-end checks in headless Chrome, on every push |
+| Test robot | 116 end-to-end checks in headless Chrome, on every push |
 
 ---
 

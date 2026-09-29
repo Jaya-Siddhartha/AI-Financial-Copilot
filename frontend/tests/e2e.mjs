@@ -493,6 +493,15 @@ await run('Insights: every figure adds up', async () => {
   const monthSpent = await js(`__t.money(document.querySelectorAll('.compare-value')[0].textContent)`);
   const expectMonth = await js(`(() => { const n = new Date(); return __t.db().transactions.filter((t) => { const d = new Date(t.date); return t.type === 'debit' && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear() && d <= n; }).reduce((s, t) => s + t.amount, 0); })()`);
   check('"This month: spent" matches the transactions', close(monthSpent, expectMonth, 0.05), { monthSpent, expectMonth });
+  await fill("input[aria-label='Amount to test']", String(Math.round(total) + 500));
+  await sleep(150);
+  const overSafe = await js(`[...document.querySelectorAll('.card')].find((c) => c.textContent.includes('Can I afford it?')).querySelector('.alert')?.className + ' ' + [...document.querySelectorAll('.card')].find((c) => c.textContent.includes('Can I afford it?')).querySelector('.alert')?.textContent`);
+  check('"Can I afford it?" never says yes to more than safe to spend', overSafe && !/\bgreen\b/.test(overSafe) && /more than/.test(overSafe), overSafe);
+  await fill("input[aria-label='Amount to test']", String(Math.max(1, Math.round(total) - 100)));
+  await sleep(150);
+  const within = await js(`[...document.querySelectorAll('.card')].find((c) => c.textContent.includes('Can I afford it?')).querySelector('.alert')?.className`);
+  check('…and says yes to an amount within it', /\bgreen\b/.test(within || ''), within);
+  await fill("input[aria-label='Amount to test']", '');
 });
 
 await run('Buffer: changing it moves safe-to-spend by exactly that much', async () => {
